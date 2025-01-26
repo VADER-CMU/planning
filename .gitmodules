@@ -1,4 +1,3 @@
-[submodule "xarm_ros2"]
-	path = xarm_ros2
+[submodule "src/xarm/xarm_ros2"]
+	path = src/xarm/xarm_ros2
 	url = git@github.com:VADER-CMU/xarm_ros2.git
-	branch = humble
