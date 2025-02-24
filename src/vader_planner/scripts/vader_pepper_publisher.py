@@ -48,6 +48,8 @@ def publisher():
     pub = rospy.Publisher('random_pepper', Pepper, queue_size=10)
     rate = rospy.Rate(0.1)  # 0.1Hz
 
+    rospy.sleep(0.5) # Wait for the publisher to be registered
+
     while not rospy.is_shutdown():
         pepper = generate_pepper()
         rospy.loginfo(f"Publishing Pepper: {pepper}")
