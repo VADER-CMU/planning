@@ -10,6 +10,7 @@
 #include <vader_msgs/Fruit.h>
 
 #include <vader_planner/pose_plan.h>
+#include <vader_planner/exec_plan.h>
 #include <iostream>
 
 class VaderPlanner
@@ -29,7 +30,8 @@ public:
         geometry_msgs::Pose pose_msg = calculatePOI(msg);
 
         // Create a service client
-        ros::ServiceClient client = nh_.serviceClient<vader_planner::pose_plan>("xarm_pose_plan");
+        ros::ServiceClient planClient = nh_.serviceClient<vader_planner::pose_plan>("xarm_pose_plan");
+        ros::ServiceClient execClient = nh_.serviceClient<vader_planner::exec_plan>("xarm_exec_plan");
 
         // Create a service request
         vader_planner::pose_plan srv;
@@ -38,9 +40,21 @@ public:
         ROS_INFO("Calling service xarm_plan_pose_service");
 
         // Call the service
-        if (client.call(srv))
+        if (planClient.call(srv))
         {
-            ROS_INFO("Service call successful");
+            ROS_INFO("Planner call successful");
+            // Call the execution service
+            vader_planner::exec_plan exec_srv;
+            exec_srv.request.exec = true;
+            ROS_INFO("Calling service xarm_exec_plan");
+            if (execClient.call(exec_srv))
+            {
+                ROS_INFO("Execution call successful");
+            }
+            else
+            {
+                ROS_ERROR("Failed to call service xarm_exec_plan");
+            }
         }
         else
         {

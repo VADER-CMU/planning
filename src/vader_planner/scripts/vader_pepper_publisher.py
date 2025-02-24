@@ -1,21 +1,21 @@
+#!/usr/bin/env python3
+
 import rospy
 from geometry_msgs.msg import Pose
 from shape_msgs.msg import SolidPrimitive
 from vader_msgs.msg import Pepper, Fruit, Peduncle
 import random
 
-#!/usr/bin/env python
-
-
 def generate_random_pose():
     pose = Pose()
-    pose.position.x = random.uniform(-1, 1)
-    pose.position.y = random.uniform(-1, 1)
-    pose.position.z = random.uniform(-1, 1)
-    pose.orientation.x = random.uniform(-1, 1)
-    pose.orientation.y = random.uniform(-1, 1)
-    pose.orientation.z = random.uniform(-1, 1)
-    pose.orientation.w = random.uniform(-1, 1)
+    pose.position.x = random.uniform(0, 0.5)
+    pose.position.y = random.uniform(0, 0.5)
+    pose.position.z = random.uniform(0.5, 0.8)
+    #Assume identity rotation for now
+    pose.orientation.x = 0
+    pose.orientation.y = 0
+    pose.orientation.z = 0
+    pose.orientation.w = 1
     return pose
 
 def generate_solid_primitive():
@@ -46,9 +46,9 @@ def generate_pepper():
 def publisher():
     rospy.init_node('vader_pepper_publisher', anonymous=True)
     pub = rospy.Publisher('random_pepper', Pepper, queue_size=10)
-    rate = rospy.Rate(0.1)  # 0.1Hz
+    rate = rospy.Rate(0.05)  # once every 20 seconds
 
-    rospy.sleep(0.5) # Wait for the publisher to be registered
+    rospy.sleep(20) # Wait for the publisher to be registered + everything launched
 
     while not rospy.is_shutdown():
         pepper = generate_pepper()
