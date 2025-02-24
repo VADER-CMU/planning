@@ -72,4 +72,6 @@
   <node name="vader_single_arm_planner" pkg="vader_planner" type="vader_single_arm_planner" />
 
   <node name="vader_pepper_to_poi" pkg="vader_planner" type="vader_pepper_to_poi"/>
+
+  <node name="fake_python_pepper_publisher" pkg="vader_planner" type="vader_pepper_publisher.py" output="screen"/>
 </launch>
