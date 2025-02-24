@@ -21,6 +21,7 @@ COMPONENTS
     geometry_msgs
     std_msgs
     xarm_msgs
+    vader_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -84,6 +85,7 @@ generate_messages(
   DEPENDENCIES
   geometry_msgs
   std_msgs
+  vader_msgs
   # Or other packages containing msgs
 )
 
@@ -119,7 +121,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES xarm_planner
- CATKIN_DEPENDS message_runtime geometry_msgs std_msgs
+ CATKIN_DEPENDS message_runtime geometry_msgs std_msgs vader_msgs
 #  DEPENDS system_lib
 )
 
