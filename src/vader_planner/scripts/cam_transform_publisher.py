@@ -16,8 +16,8 @@ calib.header.frame_id = ee_frame
 calib.child_frame_id = cam_frame
 calib.transform.translation.x = 0.0
 calib.transform.translation.y = 0.0
-calib.transform.translation.z = 1.0
-#identity transform
+calib.transform.translation.z = 0.08 #8cm from end effector plane to top of camera
+#identity transform, Z axis is same as end effector frame.
 calib.transform.rotation.x = 0.0
 calib.transform.rotation.y = 0.0
 calib.transform.rotation.z = 0.0
