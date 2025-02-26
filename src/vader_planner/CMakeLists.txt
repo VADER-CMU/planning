@@ -234,6 +234,10 @@ add_executable(vader_rohit_planner src/vader_single_arm_planner_rohit.cpp)
 add_dependencies(vader_rohit_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_rohit_planner ${catkin_LIBRARIES})
 
+add_executable(vader_abhi_planner src/vader_dual_arm_planner_coll_avoid_abhi.cpp)
+add_dependencies(vader_abhi_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_abhi_planner ${catkin_LIBRARIES})
+
 # add_executable(xarm_simple_planner_test src/xarm_simple_planner_test.cpp)
 # add_dependencies(xarm_simple_planner_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # add_dependencies(xarm_simple_planner_test xarm_msgs_generate_messages_cpp)
@@ -252,6 +256,7 @@ install(TARGETS
   vader_dual_arm_planner
   vader_pepper_to_poi
   vader_rohit_planner
+  vader_abhi_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

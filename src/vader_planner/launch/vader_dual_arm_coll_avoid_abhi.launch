@@ -130,7 +130,7 @@
   <param name="robot_name" type="str" value = "$(eval arg('robot_type') if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))"/>
   <!-- bring up the simple planner (based on move_group) that provide plan service and execution server -->
   <!-- left arm: L_xarm7, right arm: R_xarm7 -->
-  <node name="vader_dual_arm_planner_coll_avoid_abhi" pkg="xarm_planner" type="vader_dual_arm_planner_coll_avoid_abhi" />
+  <node name="vader_abhi_planner" pkg="vader_planner" type="vader_abhi_planner" />
 
 
 </launch>
