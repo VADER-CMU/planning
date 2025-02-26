@@ -6,6 +6,8 @@ from shape_msgs.msg import SolidPrimitive
 from vader_msgs.msg import Pepper, Fruit, Peduncle
 import random
 
+PEPPER_TOPIC = "target_pepper_pose"
+
 def generate_random_pose():
     pose = Pose()
     pose.position.x = random.uniform(0, 0.5)
@@ -45,10 +47,10 @@ def generate_pepper():
 
 def publisher():
     rospy.init_node('vader_pepper_publisher', anonymous=True)
-    pub = rospy.Publisher('random_pepper', Pepper, queue_size=10)
-    rate = rospy.Rate(0.05)  # once every 20 seconds
+    pub = rospy.Publisher(PEPPER_TOPIC, Pepper, queue_size=10)
+    rate = rospy.Rate(0.5)  # once every 20 seconds
 
-    rospy.sleep(20) # Wait for the publisher to be registered + everything launched
+    rospy.sleep(1) # Wait for the publisher to be registered + everything launched
 
     while not rospy.is_shutdown():
         pepper = generate_pepper()
