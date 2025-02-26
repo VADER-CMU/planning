@@ -2,3 +2,6 @@
 	path = src/xarm/xarm_ros
 	url = git@github.com:VADER-CMU/xarm_ros.git
 	branch = master
+[submodule "src/vader_msgs"]
+	path = src/vader_msgs
+	url = git@github.com:VADER-CMU/vader_msgs.git
