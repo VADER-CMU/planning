@@ -25,7 +25,7 @@
 /* Used for Cartesian path computation, please modify as needed: */
 const double jump_threshold = 0.0;
 const double eef_step = 0.005;
-const double maxV_scale_factor = 0.3;
+const double maxV_scale_factor = 0.6;
 
 
 namespace rvt = rviz_visual_tools;

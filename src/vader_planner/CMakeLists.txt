@@ -21,6 +21,7 @@ COMPONENTS
     geometry_msgs
     std_msgs
     xarm_msgs
+    vader_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -84,6 +85,7 @@ generate_messages(
   DEPENDENCIES
   geometry_msgs
   std_msgs
+  vader_msgs
   # Or other packages containing msgs
 )
 
@@ -119,7 +121,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES xarm_planner
- CATKIN_DEPENDS message_runtime geometry_msgs std_msgs
+ CATKIN_DEPENDS message_runtime geometry_msgs std_msgs vader_msgs
 #  DEPENDS system_lib
 )
 
@@ -224,6 +226,10 @@ add_executable(vader_single_arm_planner src/vader_single_arm_planner.cpp)
 add_dependencies(vader_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_single_arm_planner ${catkin_LIBRARIES})
 
+add_executable(vader_pepper_to_poi src/vader_pepper_to_POI.cpp)
+add_dependencies(vader_pepper_to_poi ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_pepper_to_poi ${catkin_LIBRARIES})
+
 add_executable(vader_rohit_planner src/vader_single_arm_planner_rohit.cpp)
 add_dependencies(vader_rohit_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_rohit_planner ${catkin_LIBRARIES})
@@ -244,6 +250,7 @@ install(TARGETS
   # xarm_gripper_planner
   vader_single_arm_planner
   vader_dual_arm_planner
+  vader_pepper_to_poi
   vader_rohit_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
