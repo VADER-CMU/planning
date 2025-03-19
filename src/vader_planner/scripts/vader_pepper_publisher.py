@@ -30,9 +30,9 @@ def generate_solid_primitive():
 def generate_fruit():
     fruit = Fruit()
     pose = Pose()
-    pose.position.x = random.uniform(0.4, 0.5)
-    pose.position.y = random.uniform(0.2, 0.3)
-    pose.position.z = 0.3#random.uniform(0.5, 0.8)
+    pose.position.x = -0.0574 #random.uniform(0.4, 0.5)
+    pose.position.y = 0.5483#random.uniform(0.2, 0.3)
+    pose.position.z = 0.6221#0.3#random.uniform(0.5, 0.8)
     #Assume identity rotation for now
     pose.orientation.x = 0
     pose.orientation.y = 0

@@ -83,8 +83,8 @@ void VADERPlanner::init()
   ROS_INFO_NAMED("move_group_planner", "End effector link: %s", group.getEndEffectorLink().c_str());
 
   /* Notice: the correct way to specify member function as callbacks */
-  plan_pose_srv = node_handle.advertiseService("xarm_pose_plan", &VADERPlanner::do_pose_plan, this);
-  exec_plan_srv = node_handle.advertiseService("xarm_exec_plan", &VADERPlanner::exec_plan_cb, this);
+  plan_pose_srv = node_handle.advertiseService("singleArmPlan", &VADERPlanner::do_pose_plan, this);
+  exec_plan_srv = node_handle.advertiseService("singleArmExec", &VADERPlanner::exec_plan_cb, this);
 
   visual_tools = new moveit_visual_tools::MoveItVisualTools("link_base");
   Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity();
@@ -121,27 +121,27 @@ void VADERPlanner::show_trail(bool plan_result)
 bool VADERPlanner::do_pose_plan(vader_msgs::SingleArmPlanRequest::Request &req, vader_msgs::SingleArmPlanRequest::Response &res)
 { 
   //snippet for quaternion transformation
-  tf::Quaternion original_quat;
-  tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, original_quat);
+  tf::Quaternion orig_quat;
+  tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, orig_quat);
   
-  geometry_msgs::Pose msg_quat;
-  msg_quat.orientation.x = req.pepper.fruit_data.pose.orientation.x;    
-  msg_quat.orientation.y = req.pepper.fruit_data.pose.orientation.y;
-  msg_quat.orientation.z = req.pepper.fruit_data.pose.orientation.z;
-  msg_quat.orientation.w = req.pepper.fruit_data.pose.orientation.w;
-  msg_quat.position.x = req.pepper.fruit_data.pose.position.x;
-  msg_quat.position.y = req.pepper.fruit_data.pose.position.y;
-  msg_quat.position.z = req.pepper.fruit_data.pose.position.z;
+  geometry_msgs::Pose orig_pose;
+  orig_pose.orientation.x = req.pepper.fruit_data.pose.orientation.x;    
+  orig_pose.orientation.y = req.pepper.fruit_data.pose.orientation.y;
+  orig_pose.orientation.z = req.pepper.fruit_data.pose.orientation.z;
+  orig_pose.orientation.w = req.pepper.fruit_data.pose.orientation.w;
+  orig_pose.position.x = req.pepper.fruit_data.pose.position.x;
+  orig_pose.position.y = req.pepper.fruit_data.pose.position.y;
+  orig_pose.position.z = req.pepper.fruit_data.pose.position.z;
 
   tf::Quaternion rotation_quat;
   rotation_quat.setRPY(0, M_PI/2, 0);
 
-  tf::Quaternion rotated_quat = rotation_quat * original_quat;
+  tf::Quaternion rotated_quat = rotation_quat * orig_quat;
   
   rotated_quat.normalize();
   tf::quaternionTFToMsg(rotated_quat, req.pepper.fruit_data.pose.orientation);
 
-  ROS_INFO("Quaternion: old=%f, new=%f,rot_quat=%f", original_quat, rotated_quat, M_PI);
+  ROS_INFO("Quaternion: old=%f, new=%f,rot_quat=%f", orig_quat, rotated_quat, M_PI);
 //end
 
   // Convert quaternion to rotation matrix
@@ -161,7 +161,7 @@ bool VADERPlanner::do_pose_plan(vader_msgs::SingleArmPlanRequest::Request &req, 
   group.setPoseTarget(req.pepper.fruit_data.pose);
 
   tf::Vector3 x_axis(1, 0, 0);
-  tf::Vector3 rotated_x_axis = tf::quatRotate(original_quat, x_axis);
+  tf::Vector3 rotated_x_axis = tf::quatRotate(orig_quat, x_axis);
   
   moveit_msgs::CollisionObject cylinder_object;
   cylinder_object.id = "cylinder_1";
@@ -170,22 +170,18 @@ bool VADERPlanner::do_pose_plan(vader_msgs::SingleArmPlanRequest::Request &req, 
   shape_msgs::SolidPrimitive primitive;
   primitive.type = primitive.CYLINDER;
   primitive.dimensions.resize(2);
-  primitive.dimensions[primitive.CYLINDER_HEIGHT] = 0.1; // Height - to be changed based on input
-  primitive.dimensions[primitive.CYLINDER_RADIUS] = 0.075; // Radius - to be changed based on input
-  tf::Vector3 displacement = 1.1*rotated_x_axis.normalized()*primitive.dimensions[primitive.CYLINDER_RADIUS];
+  primitive.dimensions[primitive.CYLINDER_HEIGHT] = req.pepper.fruit_data.shape.dimensions[0]; // Height - to be changed based on input
+  primitive.dimensions[primitive.CYLINDER_RADIUS] = req.pepper.fruit_data.shape.dimensions[1]; // Radius - to be changed based on input
 
   geometry_msgs::Pose cylinder_pose;
-  cylinder_pose.orientation.x = msg_quat.orientation.x;
-  cylinder_pose.orientation.y = msg_quat.orientation.y;
-  cylinder_pose.orientation.z = msg_quat.orientation.z;
-  cylinder_pose.orientation.w = msg_quat.orientation.w;
-  cylinder_pose.position.x = msg_quat.position.x;//
-  cylinder_pose.position.y = msg_quat.position.y;
-  cylinder_pose.position.z = msg_quat.position.z;
-  // cylinder_pose.position.x = msg_quat.position.x + displacement.x() + 0.05;//
-  // cylinder_pose.position.y = msg_quat.position.y + displacement.y() + 0.05;
-  // cylinder_pose.position.z = msg_quat.position.z + displacement.z() + 0.05;
-  //- 1.3*primitive.dimensions[primitive.CYLINDER_RADIUS]
+  cylinder_pose.orientation.x = orig_pose.orientation.x;
+  cylinder_pose.orientation.y = orig_pose.orientation.y;
+  cylinder_pose.orientation.z = orig_pose.orientation.z;
+  cylinder_pose.orientation.w = orig_pose.orientation.w;
+  cylinder_pose.position.x = orig_pose.position.x;
+  cylinder_pose.position.y = orig_pose.position.y;
+  cylinder_pose.position.z = orig_pose.position.z;
+
   cylinder_object.primitives.push_back(primitive);
   cylinder_object.primitive_poses.push_back(cylinder_pose);
   cylinder_object.operation = moveit_msgs::CollisionObject::ADD;
