@@ -20,8 +20,9 @@ COMPONENTS
     message_generation
     geometry_msgs
     std_msgs
-    xarm_msgs
     vader_msgs
+    tf
+    sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -121,7 +122,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES xarm_planner
- CATKIN_DEPENDS message_runtime geometry_msgs std_msgs vader_msgs
+ CATKIN_DEPENDS message_runtime geometry_msgs std_msgs vader_msgs moveit_visual_tools
 #  DEPENDS system_lib
 )
 
@@ -218,29 +219,33 @@ ${catkin_INCLUDE_DIRS}
 # add_dependencies(xarm_simple_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # target_link_libraries(xarm_simple_planner ${catkin_LIBRARIES})
 
-add_executable(vader_dual_arm_planner src/vader_dual_arm_planner.cpp)
-add_dependencies(vader_dual_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_dual_arm_planner ${catkin_LIBRARIES})
+# add_executable(vader_dual_arm_planner src/vader_dual_arm_planner.cpp)
+# add_dependencies(vader_dual_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_dual_arm_planner ${catkin_LIBRARIES})
 
-add_executable(vader_single_arm_planner src/vader_single_arm_planner.cpp)
-add_dependencies(vader_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_single_arm_planner ${catkin_LIBRARIES})
+# add_executable(vader_single_arm_planner src/vader_single_arm_planner.cpp)
+# add_dependencies(vader_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_single_arm_planner ${catkin_LIBRARIES})
 
-add_executable(vader_pepper_to_poi src/vader_pepper_to_POI.cpp)
-add_dependencies(vader_pepper_to_poi ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_pepper_to_poi ${catkin_LIBRARIES})
+# add_executable(vader_pepper_to_poi src/vader_pepper_to_POI.cpp)
+# add_dependencies(vader_pepper_to_poi ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_pepper_to_poi ${catkin_LIBRARIES})
 
-add_executable(vader_rohit_planner src/vader_single_arm_planner_rohit.cpp)
-add_dependencies(vader_rohit_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_rohit_planner ${catkin_LIBRARIES})
+# add_executable(vader_rohit_planner src/vader_single_arm_planner_rohit.cpp)
+# add_dependencies(vader_rohit_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_rohit_planner ${catkin_LIBRARIES})
 
-add_executable(vader_abhi_planner src/vader_dual_arm_planner_coll_avoid_abhi.cpp)
-add_dependencies(vader_abhi_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_abhi_planner ${catkin_LIBRARIES})
+# add_executable(vader_abhi_planner src/vader_dual_arm_planner_coll_avoid_abhi.cpp)
+# add_dependencies(vader_abhi_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_abhi_planner ${catkin_LIBRARIES})
 
-add_executable(vader_PR2_planner src/vader_PR2_planner.cpp)
-add_dependencies(vader_PR2_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_PR2_planner ${catkin_LIBRARIES})
+# add_executable(vader_PR2_planner src/vader_PR2_planner.cpp)
+# add_dependencies(vader_PR2_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_PR2_planner ${catkin_LIBRARIES})
+
+add_executable(vader_PR3_planner src/vader_PR3_planner.cpp)
+add_dependencies(vader_PR3_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_PR3_planner ${catkin_LIBRARIES})
 
 # add_executable(xarm_simple_planner_test src/xarm_simple_planner_test.cpp)
 # add_dependencies(xarm_simple_planner_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -256,12 +261,13 @@ install(TARGETS
   # xarm_simple_planner
   # xarm_simple_planner_test
   # xarm_gripper_planner
-  vader_single_arm_planner
-  vader_dual_arm_planner
-  vader_pepper_to_poi
-  vader_rohit_planner
-  vader_abhi_planner
-  vader_PR2_planner
+  # vader_single_arm_planner
+  # vader_dual_arm_planner
+  # vader_pepper_to_poi
+  # vader_rohit_planner
+  # vader_abhi_planner
+  # vader_PR2_planner
+  vader_PR3_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
