@@ -6,7 +6,7 @@ from shape_msgs.msg import SolidPrimitive
 from vader_msgs.msg import Pepper, Fruit, Peduncle
 import random
 
-PEPPER_TOPIC = "target_pepper_pose"
+PEPPER_TOPIC = "fruit_pose"
 
 def generate_random_pose():
     pose = Pose()
@@ -66,6 +66,9 @@ def generate_peduncle(fruit):
 
 def generate_pepper():
     pepper = Pepper()
+
+    pepper.header.stamp = rospy.Time.now()
+    pepper.header.frame_id = "camera_depth_optical_frame"  # Use appropriate frame ID
     pepper.fruit_data = generate_fruit()
     pepper.peduncle_data = generate_peduncle(pepper.fruit_data)
     return pepper
