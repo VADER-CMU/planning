@@ -37,7 +37,7 @@ def generate_fruit():
     pose.orientation.x = 0
     pose.orientation.y = 0
     pose.orientation.z = 0
-    pose.orientation.w = 1
+    pose.orientation.w = 1 #0.7071068
     fruit.pose = pose
     fruit_primitive = SolidPrimitive()
     fruit_primitive.type = SolidPrimitive.CYLINDER

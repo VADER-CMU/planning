@@ -123,6 +123,9 @@ bool VADERPlanner::do_pose_plan(vader_msgs::SingleArmPlanRequest::Request &req, 
   //snippet for quaternion transformation
   tf::Quaternion orig_quat;
   tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, orig_quat);
+
+  // tf2_ros::Buffer tf_buffer;
+  // tf2_ros::TransformListener tf_listener(tf_buffer); 
   
   geometry_msgs::Pose orig_pose;
   orig_pose.orientation.x = req.pepper.fruit_data.pose.orientation.x;    
@@ -142,7 +145,7 @@ bool VADERPlanner::do_pose_plan(vader_msgs::SingleArmPlanRequest::Request &req, 
   tf::quaternionTFToMsg(rotated_quat, req.pepper.fruit_data.pose.orientation);
 
   ROS_INFO("Quaternion: old=%f, new=%f,rot_quat=%f", orig_quat, rotated_quat, M_PI);
-//end
+// end
 
   // Convert quaternion to rotation matrix
   tf::Matrix3x3 rotation_matrix(rotated_quat);
@@ -203,8 +206,7 @@ bool VADERPlanner::do_pose_plan(vader_msgs::SingleArmPlanRequest::Request &req, 
   box_pose.orientation.w = 1.0;
   box_pose.position.x = cylinder_pose.position.x;
   box_pose.position.y = cylinder_pose.position.y;
-  box_pose.position.z = 0.28; // Half the height of the box
-
+  box_pose.position.z = cylinder_pose.position.z - (req.pepper.fruit_data.shape.dimensions[0] / 2) - 0.28; // Half the height of the box
   box_object.primitives.push_back(box_primitive);
   box_object.primitive_poses.push_back(box_pose);
   box_object.operation = moveit_msgs::CollisionObject::ADD;
