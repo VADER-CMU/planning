@@ -247,6 +247,14 @@ add_executable(vader_PR3_planner src/vader_PR3_planner.cpp)
 add_dependencies(vader_PR3_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_PR3_planner ${catkin_LIBRARIES})
 
+add_executable(vader_single_arm_planner_chomp src/vader_single_arm_planner_chomp.cpp)
+add_dependencies(vader_single_arm_planner_chomp ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_single_arm_planner_chomp ${catkin_LIBRARIES})
+
+add_executable(vader_single_arm_planner_pgtg src/vader_single_arm_planner_pgtg.cpp)
+add_dependencies(vader_single_arm_planner_pgtg ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_single_arm_planner_pgtg ${catkin_LIBRARIES})
+
 # add_executable(xarm_simple_planner_test src/xarm_simple_planner_test.cpp)
 # add_dependencies(xarm_simple_planner_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # add_dependencies(xarm_simple_planner_test xarm_msgs_generate_messages_cpp)
@@ -267,6 +275,8 @@ install(TARGETS
   # vader_rohit_planner
   # vader_abhi_planner
   # vader_PR2_planner
+  vader_single_arm_planner_chomp
+  vader_single_arm_planner_pgtg
   vader_PR3_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
