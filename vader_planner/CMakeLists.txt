@@ -255,6 +255,8 @@ add_executable(vader_single_arm_planner_pgtg src/vader_single_arm_planner_pgtg.c
 add_dependencies(vader_single_arm_planner_pgtg ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_single_arm_planner_pgtg ${catkin_LIBRARIES})
 
+
+
 # add_executable(xarm_simple_planner_test src/xarm_simple_planner_test.cpp)
 # add_dependencies(xarm_simple_planner_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # add_dependencies(xarm_simple_planner_test xarm_msgs_generate_messages_cpp)

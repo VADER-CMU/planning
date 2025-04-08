@@ -31,6 +31,6 @@
 
   <param name="robot_name" type="str" value = "$(eval arg('robot_type') if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))"/>
 
-  <node name="vader_single_arm_planner" pkg="vader_planner" type="vader_single_arm_planner" />
+  <node name="vader_single_arm_planner_pgtg" pkg="vader_planner" type="vader_single_arm_planner_pgtg" output="screen"/>
 </launch>
 

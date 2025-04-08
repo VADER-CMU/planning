@@ -77,7 +77,7 @@ class VADERPlanner
     ros::ServiceServer exec_plan_srv; /* blocking with result feedback */
 
     void init();
-    bool do_pose_plan(vader_planner::pose_plan::Request &req, vader_planner::pose_plan::Response &res);
+    bool do_pregrasp_pose_plan(vader_planner::pose_plan::Request &req, vader_planner::pose_plan::Response &res);
     bool do_joint_plan(vader_planner::joint_plan::Request &req, vader_planner::joint_plan::Response &res);
     bool do_single_cartesian_plan(vader_planner::single_straight_plan::Request &req, vader_planner::single_straight_plan::Response &res);
     bool exec_plan_cb(vader_planner::exec_plan::Request &req, vader_planner::exec_plan::Response &res);
@@ -96,7 +96,7 @@ void VADERPlanner::init()
   ROS_INFO_NAMED("move_group_planner", "End effector link: %s", group.getEndEffectorLink().c_str());
 
   /* Notice: the correct way to specify member function as callbacks */
-  plan_pose_srv = node_handle.advertiseService("xarm_pose_plan", &VADERPlanner::do_pose_plan, this);
+  plan_pose_srv = node_handle.advertiseService("xarm_pose_plan", &VADERPlanner::do_pregrasp_pose_plan, this);
   plan_joint_srv = node_handle.advertiseService("xarm_joint_plan", &VADERPlanner::do_joint_plan, this);
   sing_cart_srv = node_handle.advertiseService("xarm_straight_plan", &VADERPlanner::do_single_cartesian_plan, this);
 
@@ -135,7 +135,7 @@ void VADERPlanner::show_trail(bool plan_result)
   }
 }
 
-bool VADERPlanner::do_pose_plan(vader_planner::pose_plan::Request &req, vader_planner::pose_plan::Response &res)
+bool VADERPlanner::do_pregrasp_pose_plan(vader_planner::pose_plan::Request &req, vader_planner::pose_plan::Response &res)
 { 
   //snippet for quaternion transformation
   tf::Quaternion original_quat;
@@ -249,6 +249,8 @@ bool VADERPlanner::do_pose_plan(vader_planner::pose_plan::Request &req, vader_pl
 
   return success;
 }
+
+
 
 bool VADERPlanner::do_single_cartesian_plan(vader_planner::single_straight_plan::Request &req, vader_planner::single_straight_plan::Response &res)
 {
