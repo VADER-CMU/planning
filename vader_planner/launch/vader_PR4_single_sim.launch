@@ -3,7 +3,8 @@
   <arg name="add_gripper" default="false" />
   <arg name="add_vacuum_gripper" default="false" />
   <arg name="namespace" default="xarm"/>
-  <arg name="no_gui_plan" default="true" />
+  <arg name="no_gui_plan" default="false" />
+  <arg name="add_vader_gripper" default="true" />
   <arg name="robot_type" default="xarm"/>
   <arg name="model1300" default="false" />
 
@@ -29,8 +30,6 @@
   <!-- this remap must appear BEFORE move_group launch -->
   <arg name="robot_controller_name" value="$(eval 'xarm7_velo_traj_controller' if arg('velocity_control') else 'xarm7_traj_controller')" />
   <remap from="/follow_joint_trajectory" to="/$(arg namespace)/$(arg robot_controller_name)/follow_joint_trajectory"/>
-  <arg name="gripper_controller_name" value="$(eval 'gripper_velo_traj_controller' if arg('velocity_control') else 'gripper_traj_controller')" />
-  <remap if="$(arg add_gripper)" from="gripper_controller/follow_joint_trajectory" to="/$(arg namespace)/$(arg gripper_controller_name)/follow_joint_trajectory"/>
 
   <include file="$(find xarm7_moveit_config)/launch/moveit_rviz_common.launch">
     <arg name="jnt_stat_source" value="[/$(arg namespace)/joint_states]" />
@@ -40,6 +39,7 @@
     <arg name="add_realsense_d435i" value="$(arg add_realsense_d435i)"/>
     <arg name="add_d435i_links" value="$(arg add_d435i_links)"/>
     <arg name="robot_sn" value="$(arg robot_sn)"/>
+    <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> 
 
     <arg name="sim_gazebo" value="true"/>
     <arg name="add_gripper" value="$(arg add_gripper)"/>
@@ -57,18 +57,20 @@
     <arg name="geometry_mesh_tcp_xyz" value="$(arg geometry_mesh_tcp_xyz)"/>
     <arg name="geometry_mesh_tcp_rpy" value="$(arg geometry_mesh_tcp_rpy)"/>
     <!-- uhhh -->
-    <arg name="NO_GUI_CTRL" default="true"/>
+    <arg name="NO_GUI_CTRL" value="$(arg no_gui_plan)"/>
 
   </include>
 
 
   <!-- XARM GAZEBO -->
   <include file="$(find xarm_gazebo)/launch/xarm7_beside_table.launch">
+    <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> 
+
   </include>
 
 
   <param name="robot_name" type="str" value = "$(eval arg('robot_type') if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))"/>
   <!-- bring up the simple planner (based on move_group) that provide plan service and execution server -->
-  <node name="xarm_move_group_planner" pkg="xarm_planner" type="xarm_simple_planner" />
+  <node name="vader_single_arm_planner" pkg="vader_planner" type="vader_single_arm_planner" />
 
 </launch>
