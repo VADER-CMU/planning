@@ -15,6 +15,9 @@
   <arg name="add_d435i_links" default="false" />
   <arg name="add_gripper" default="false" />
   <arg name="add_vacuum_gripper" default="false" />
+  <arg name="add_vader_eef" default="true" /> 
+  <arg name="sim_pepper_pose" default="0.0 0.0 0.0 0.0 0.0 0.0"/>
+  <arg name="bin_xyz" default="0.0 0.0 0.0"/>
   <arg name="add_other_geometry" default="false"/>
   <arg name="geometry_type" default="box"/>
   <arg name="geometry_mass" default="0.1"/>
@@ -92,7 +95,7 @@
 
   </include>
 
-  <include file="$(find xarm_gazebo)/launch/_dual_robot_beside_table.launch">
+  <include file="$(find xarm_gazebo)/launch/_dual_robot_pepper.launch">
     <arg name="dof" value="$(arg dof)" />
     <arg name="robot_type" value="$(arg robot_type)" />
     <arg name="robot_sn" value="$(arg robot_sn)"/> 
@@ -104,6 +107,9 @@
     <arg name="attach_to" value="$(arg attach_to)"/>
     <arg name="attach_xyz" value="$(arg attach_xyz)"/>
     <arg name="attach_rpy" value="$(arg attach_rpy)"/>
+    <arg name="add_vader_eef" value="$(arg add_vader_eef)" />
+    <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/>
+    <arg name="bin_xyz" value="$(arg bin_xyz)"/>
     
     <arg name="add_realsense_d435i" value="$(arg add_realsense_d435i)"/>
     <arg name="add_d435i_links" value="$(arg add_d435i_links)"/>

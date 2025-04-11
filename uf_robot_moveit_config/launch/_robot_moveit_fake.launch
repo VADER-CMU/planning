@@ -1,14 +1,19 @@
 <launch>
-  <arg name="robot_dof" default="7"/>
+  <arg name="dof" default="7" />
+  <arg name="robot_type" default="xarm" />
+  <arg name="robot_sn" default="" />
+  <arg name="model1300" default="false" />
+  <arg name="limited" default="true" />
+  <arg name="kinematics_suffix" default="" />
+  
+  <arg name="attach_to" default="world" />
+  <arg name="attach_xyz" default="'0 0 0'" />
+  <arg name="attach_rpy" default="'0 0 0'" />
+  
+  <arg name="add_realsense_d435i" default="false" />
+  <arg name="add_d435i_links" default="false" />
   <arg name="add_gripper" default="false" />
   <arg name="add_vacuum_gripper" default="false" />
-  <arg name="namespace" default="xarm"/>
-  <arg name="no_gui_plan" default="false" />
-  <arg name="add_vader_gripper" default="true" />
-  <arg name="robot_type" default="xarm"/>
-  <arg name="model1300" default="false" />
-
-  <arg name="velocity_control" default="false"/>
   <arg name="add_other_geometry" default="false"/>
   <arg name="geometry_type" default="box"/>
   <arg name="geometry_mass" default="0.1"/>
@@ -22,26 +27,37 @@
   <arg name="geometry_mesh_tcp_xyz" default="'0 0 0'"/>
   <arg name="geometry_mesh_tcp_rpy" default="'0 0 0'"/>
 
-  <arg name="add_realsense_d435i" default="false" />
-  <arg name="add_d435i_links" default="false" />
-  <arg name="robot_sn" default="" />
-  
-  <!-- Remap the name space so it can send command to gazebo loaded controller -->
-  <!-- this remap must appear BEFORE move_group launch -->
-  <arg name="robot_controller_name" value="$(eval 'xarm7_velo_traj_controller' if arg('velocity_control') else 'xarm7_traj_controller')" />
-  <remap from="/follow_joint_trajectory" to="/$(arg namespace)/$(arg robot_controller_name)/follow_joint_trajectory"/>
+  <arg name="ext_ns" default="" />
+  <arg name="sensors_3d" default="false" />
+  <arg name="jnt_stat_pub_rate" default="10" />
+  <!-- only use in xarm_planner -->
+  <arg name="no_gui_plan" default="false" />
 
-  <include file="$(find xarm7_moveit_config)/launch/moveit_rviz_common.launch">
-    <arg name="jnt_stat_source" value="[/$(arg namespace)/joint_states]" />
+  <arg name="pipeline" default="ompl" />
+  <arg name="show_rviz" default="true" />
+
+  <remap from="source_list" to="/source_list" />
+  <include file="$(find uf_robot_moveit_config)/launch/__moveit_rviz_common.launch">
+    <arg name="jnt_stat_source" value="[move_group/fake_controller_joint_states]" />
+    <!-- option to launch move_group node or not -->
     <arg name="load_move_group" value="true" />
-    <arg name="pub_tf" value="false" />
+    <!-- whether to use fake_execution controller to drive the motion -->
+    <arg name="fake_execution" value="true" />
+    <arg name="no_gui_plan" value="$(arg no_gui_plan)"/>
+    
+    <arg name="dof" value="$(arg dof)" />
+    <arg name="robot_type" value="$(arg robot_type)" />
+    <arg name="robot_sn" value="$(arg robot_sn)"/>
     <arg name="model1300" value="$(arg model1300)"/>
+    <arg name="limited" value="$(arg limited)"/>
+    <arg name="kinematics_suffix_1" value="$(arg kinematics_suffix)"/>
+    
+    <arg name="attach_to" value="$(arg attach_to)"/>
+    <arg name="attach_xyz" value="$(arg attach_xyz)"/>
+    <arg name="attach_rpy" value="$(arg attach_rpy)"/>
+    
     <arg name="add_realsense_d435i" value="$(arg add_realsense_d435i)"/>
     <arg name="add_d435i_links" value="$(arg add_d435i_links)"/>
-    <arg name="robot_sn" value="$(arg robot_sn)"/>
-    <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> 
-
-    <arg name="sim_gazebo" value="true"/>
     <arg name="add_gripper" value="$(arg add_gripper)"/>
     <arg name="add_vacuum_gripper" value="$(arg add_vacuum_gripper)"/>
     <arg name="add_other_geometry" value="$(arg add_other_geometry)"/>
@@ -56,21 +72,12 @@
     <arg name="geometry_mesh_origin_rpy" value="$(arg geometry_mesh_origin_rpy)"/>
     <arg name="geometry_mesh_tcp_xyz" value="$(arg geometry_mesh_tcp_xyz)"/>
     <arg name="geometry_mesh_tcp_rpy" value="$(arg geometry_mesh_tcp_rpy)"/>
-    <!-- uhhh -->
-    <arg name="NO_GUI_CTRL" value="$(arg no_gui_plan)"/>
 
+    <arg name="sensors_3d" value="$(arg sensors_3d)" />
+    <arg name="jnt_stat_pub_rate" value="$(arg jnt_stat_pub_rate)"/>
+    <arg name="pipeline" value="$(arg pipeline)"/>
+    <arg name="show_rviz" value="$(arg show_rviz)"/>
+    
   </include>
-
-
-  <!-- XARM GAZEBO -->
-  <include file="$(find xarm_gazebo)/launch/xarm7_beside_table.launch">
-    <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> 
-
-  </include>
-
-
-  <param name="robot_name" type="str" value = "$(eval arg('robot_type') if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))"/>
-  <!-- bring up the simple planner (based on move_group) that provide plan service and execution server -->
-  <node name="vader_single_arm_planner_PC" pkg="vader_planner" type="vader_single_arm_planner_PC" output="screen"/>
 
 </launch>
