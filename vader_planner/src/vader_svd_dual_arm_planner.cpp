@@ -151,8 +151,14 @@ void VADERPlanner::_add_pepper_collision(vader_msgs::Pepper &pepper) {
     moveit_msgs::CollisionObject cylinder_object;
     cylinder_object.header.frame_id = group_gripper.getPlanningFrame();
     cylinder_object.id = "pepper";
-    cylinder_object.header.frame_id = "link_base";
-    cylinder_object.primitives.push_back(pepper.fruit_data.shape);
+    // cylinder_object.header.frame_id = "link_base";
+
+    shape_msgs::SolidPrimitive primitive;
+    primitive.type = primitive.CYLINDER;
+    primitive.dimensions.resize(2);
+    primitive.dimensions[primitive.CYLINDER_HEIGHT] = pepper.fruit_data.shape.dimensions[0];
+    primitive.dimensions[primitive.CYLINDER_RADIUS] = pepper.fruit_data.shape.dimensions[1];
+    cylinder_object.primitives.push_back(primitive);
     cylinder_object.primitive_poses.push_back(pepper.fruit_data.pose);
     cylinder_object.operation = moveit_msgs::CollisionObject::ADD;
     planning_scene_interface.applyCollisionObject(cylinder_object);
@@ -191,6 +197,9 @@ bool VADERPlanner::planning_service_handler(vader_msgs::BimanualPlanRequest::Req
     } else {
         // Gripper
         plan_type = req.mode; //Store which plan is being used for gripper and check this when executing
+        bool success = planGripperPregraspPose(req);
+        res.result = success;
+        return success;
     }
 }
 
@@ -456,6 +465,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
     if(found_ik){
         moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
         const robot_state::JointModelGroup *joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
+        current_state->setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
       
         std::vector<double> joint_values;
         current_state->copyJointGroupPositions(joint_model_group, joint_values);
@@ -491,6 +501,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
         ROS_ERROR("Could not find IK solution for any tested pose");
         success = false;
     }
+    ROS_INFO("Finished planning");
     return success;
 }
 
