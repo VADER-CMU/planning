@@ -295,33 +295,6 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
     }
 }
 
-// static tf::Vector3 _calculate_closest_PC_point(tf::Vector3 &axis, tf::Vector3 &centroid, double radius) {
-//     // Generate two orthonormal vectors u,v that are perpendicular to pepper_axis
-//     tf::Vector3 u, v;
-
-//     // Find first perpendicular vector u
-//     tf::Vector3 ref(0, 0, 1);
-//     if (std::abs(axis.dot(ref)) > 0.9)
-//     {
-//     // If cylinder axis is nearly vertical, use a different reference
-//     ref = tf::Vector3(1, 0, 0);
-//     }
-
-//     u = axis.cross(ref).normalized();
-//     v = axis.cross(u).normalized();
-
-//     // Calculate the values A and B
-//     double A = -centroid.dot(u); // Note the negative signs as per the formula
-//     double B = -centroid.dot(v);
-
-//     // Calculate theta_min to find the closest point to origin
-//     double theta_min = atan2(B, A);
-
-//     // Calculate the closest point on the parametric circle
-//     tf::Vector3 closest_point = pepper_centroid + radius * (cos(theta_min) * u + sin(theta_min) * v);
-//     return closest_point;
-// }
-
 static tf::Quaternion _get_norm_quat_from_axes(tf::Vector3 &ax_x, tf::Vector3 &ax_y, tf::Vector3 &ax_z) {
     // Create rotation matrix for end effector orientation
     tf::Matrix3x3 rot_matrix;
@@ -580,24 +553,141 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
 }
 
 bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
-    //If we rotated for the camera before, restore that
-    moveit::core::RobotState _state = *group_gripper.getCurrentState();
-    const robot_state::JointModelGroup *joint_model_group = _state.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+
+    //display pepper as collision obj
+    _add_pepper_collision(req.pepper);
+
+    tf::Quaternion pepper_quat;
+    tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, pepper_quat);
+
+    tf::Vector3 pepper_axis = tf::quatRotate(pepper_quat, tf::Vector3(0, 0, 1)).normalized();
+
+    tf::Vector3 pepper_centroid(
+        req.pepper.fruit_data.pose.position.x,
+        req.pepper.fruit_data.pose.position.y,
+        req.pepper.fruit_data.pose.position.z
+    );
+
+    double radius = req.reserve_dist;
+
+    // Generate two orthonormal vectors u,v that are perpendicular to pepper_axis
+    tf::Vector3 u, v;
+
+    // Find first perpendicular vector u
+    tf::Vector3 ref(0, 0, 1);
+    if (std::abs(pepper_axis.dot(ref)) > 0.9)
+    {
+        // If cylinder axis is nearly vertical, use a different reference
+        ref = tf::Vector3(1, 0, 0);
+    }
+
+    u = pepper_axis.cross(ref).normalized();
+    v = pepper_axis.cross(u).normalized();
+
+    // Calculate the values A and B
+    double A = -pepper_centroid.dot(u); // Note the negative signs as per the formula
+    double B = -pepper_centroid.dot(v);
+
+    // Calculate theta_min to find the closest point to origin
+    double theta_min = atan2(B, A);
+
+    // Calculate the closest point on the parametric circle
+    tf::Vector3 closest_point = pepper_centroid + radius * (cos(theta_min) * u + sin(theta_min) * v);
+
+    ROS_INFO("Closest point on circle: (%f, %f, %f)",
+        closest_point.x(), closest_point.y(), closest_point.z());
+
+
+    //Calculate end effector orientation
+    // The gripper z-axis should point from the goal point to the cylinder centroid
+    tf::Vector3 ee_z = (pepper_centroid - closest_point).normalized();
+
+    // Ensure end effector y-axis is perpendicular to cylinder axis
+    tf::Vector3 ee_y = pepper_axis.cross(ee_z).normalized();
+
+    // Calculate end effector x-axis to complete right-handed coordinate system
+    tf::Vector3 ee_x = ee_y.cross(ee_z).normalized();
+
+    tf::Quaternion ee_quat = _get_norm_quat_from_axes(ee_x, ee_y, ee_z);
+
+    // Set end effector pose
+    geometry_msgs::Pose end_effector_pose = _get_pose_from_pos_and_quat(closest_point, ee_quat);
+
+    // Log end effector pose
+    ROS_INFO("End effector position: (%f, %f, %f)", end_effector_pose.position.x, end_effector_pose.position.y, end_effector_pose.position.z);
+    ROS_INFO("End effector orientation: (%f, %f, %f, %f)", end_effector_pose.orientation.x, end_effector_pose.orientation.y, end_effector_pose.orientation.z, end_effector_pose.orientation.w);
+
+    // group_gripper.setPoseTarget(end_effector_pose);
+
+    bool found_ik = _test_IK_for_gripper_pose(end_effector_pose);
     
-    std::vector<double> joint_values;
-    _state.copyJointGroupPositions(joint_model_group, joint_values);
-    joint_values[joint_values.size() - 1] = gripper_pregrasp_cam_orig_value;
+    if(!found_ik) {
 
-    group_gripper.setJointValueTarget(joint_values);
-    bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    if (success) {
+        ROS_WARN("Initial IK solution failed, trying alternative points on the parametric circle");
+        // Try different angles around the parametric circle in 30-degree increments
+        for (int i = 1; i <= 11 && !found_ik; i++)
+        {
+            // Try i*30 degrees away from the optimal angle
+            double test_angle = theta_min + i * (M_PI / 6);
+
+            // Calculate test point
+            tf::Vector3 test_point = pepper_centroid + radius * (cos(test_angle) * u + sin(test_angle) * v);
+
+            // Calculate orientation (gripper z-axis still points at cylinder centroid)
+            tf::Vector3 test_ee_z = (pepper_centroid - test_point).normalized();
+            tf::Vector3 test_ee_y = pepper_axis.cross(test_ee_z).normalized();
+
+            // Check if the cross product result is valid (non-zero length)
+            if (test_ee_y.length() < 0.1)
+            {
+                // If ee_z is nearly parallel to pepper_axis, use different approach
+                tf::Vector3 world_up(0, 0, 1);
+                test_ee_y = (std::abs(test_ee_z.dot(world_up)) > 0.9) ? tf::Vector3(1, 0, 0).cross(test_ee_z).normalized() : world_up.cross(test_ee_z).normalized();
+            }
+
+            tf::Vector3 test_ee_x = test_ee_y.cross(test_ee_z).normalized();
+
+            // Create rotation matrix and convert to quaternion
+            tf::Quaternion test_quat = _get_norm_quat_from_axes(test_ee_x, test_ee_y, test_ee_z);
+            geometry_msgs::Pose test_pose = _get_pose_from_pos_and_quat(closest_point, test_quat);
+
+
+            // Try IK for this pose
+            found_ik = _test_IK_for_gripper_pose(test_pose);
+
+            if (found_ik)
+            {
+                ROS_INFO("Found IK solution at alternative angle: theta = %.2f radians (%.2f degrees from optimal)", test_angle, i * 30.0);
+                end_effector_pose = test_pose;
+                break;
+            }
+        }
+    }
+    bool success;
+    if(found_ik){
+        moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+        const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+        bool _found = state_copy.setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
+        assert(_found);
+
+        std::vector<double> joint_values;
+        state_copy.copyJointGroupPositions(joint_model_group, joint_values);
+        ROS_INFO("Found valid IK solution");
+
+        pregraspFinalGripperPose = end_effector_pose;
+    
+        group_gripper.setJointValueTarget(joint_values);
+        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        show_trail(success);
+
         // Execute the plan
-        bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-        if (exec_result) {
-            ROS_INFO("Successfully moved to grasp position");
-            geometry_msgs::Pose current_pose = pregraspFinalGripperPose;
 
-            tf::Vector3 approach(0.0, 0.0, req.reserve_dist + 0.06);
+        bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        if(exec_result){
+            ROS_INFO("Successfully moved to grasp position");
+            geometry_msgs::Pose current_pose = end_effector_pose;
+        
+            tf::Vector3 approach(0.0, 0.0, 0.1);
 
             tf::Quaternion curr_quat;
             tf::quaternionMsgToTF(current_pose.orientation, curr_quat);
@@ -609,49 +699,94 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
             current_pose.position.y += transformed_approach.y();
             current_pose.position.z += transformed_approach.z();
 
-            bool found_ik = _test_IK_for_gripper_pose(current_pose);
+            group_gripper.setPoseTarget(current_pose);
 
-            if (found_ik) {
-                // moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
-                // const robot_state::JointModelGroup* joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
-                // current_state->copyJointGroupPositions(joint_model_group, joint_values);
-                
-                // ROS_INFO("Found IK solution for pre-grasp pose");
-                
-                // // Use joint values target instead of pose target
-                // group_gripper.setJointValueTarget(joint_values);
-                group_gripper.setPoseTarget(current_pose);
-                // moveit::core::RobotState _state = *group_gripper.getCurrentState();
-                // const robot_state::JointModelGroup *joint_model_group = _state.getJointModelGroup(PLANNING_GROUP_GRIPPER);
-                // //Solve IK using this state
-                // bool _found = _state.setFromIK(joint_model_group, current_pose, 10, 0.1);
-                // assert(_found);
-                // std::vector<double> joint_values;
-                // _state.copyJointGroupPositions(joint_model_group, joint_values);
-                // group_gripper.setJointValueTarget(joint_values);
-
-
-
-                
-                // Plan using joint space goal
-                success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-                
-                ROS_INFO_NAMED("move_group_planner", "This plan (joint-space goal) %s", success ? "SUCCEEDED" : "FAILED");
-                
-                show_trail(success);
-                
-              } else {
-                ROS_ERROR("Did not find IK solution for pre-grasp pose");
-                success = false;
-              }
-
-        } else {
-          ROS_ERROR("Failed to execute grasp plan");
-          success = false;
+            success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            show_trail(success);
         }
+    
+    }else{
+        ROS_ERROR("Could not find IK solution for any tested pose");
+        success = false;
     }
+    ROS_INFO("Finished planning");
     return success;
 }
+
+
+// bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
+//     //If we rotated for the camera before, restore that
+//     moveit::core::RobotState _state = *group_gripper.getCurrentState();
+//     const robot_state::JointModelGroup *joint_model_group = _state.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+    
+//     std::vector<double> joint_values;
+//     _state.copyJointGroupPositions(joint_model_group, joint_values);
+//     joint_values[joint_values.size() - 1] = gripper_pregrasp_cam_orig_value;
+
+//     group_gripper.setJointValueTarget(joint_values);
+//     bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+//     if (success) {
+//         // Execute the plan
+//         bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+//         if (exec_result) {
+//             ROS_INFO("Successfully moved to grasp position");
+//             geometry_msgs::Pose current_pose = pregraspFinalGripperPose;
+
+//             tf::Vector3 approach(0.0, 0.0, req.reserve_dist + 0.06);
+
+//             tf::Quaternion curr_quat;
+//             tf::quaternionMsgToTF(current_pose.orientation, curr_quat);
+//             tf::Matrix3x3 curr_rot(curr_quat);
+          
+//             tf::Vector3 transformed_approach = curr_rot * approach;
+          
+//             current_pose.position.x += transformed_approach.x();
+//             current_pose.position.y += transformed_approach.y();
+//             current_pose.position.z += transformed_approach.z();
+
+//             bool found_ik = _test_IK_for_gripper_pose(current_pose);
+
+//             if (found_ik) {
+//                 // moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
+//                 // const robot_state::JointModelGroup* joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
+//                 // current_state->copyJointGroupPositions(joint_model_group, joint_values);
+                
+//                 // ROS_INFO("Found IK solution for pre-grasp pose");
+                
+//                 // // Use joint values target instead of pose target
+//                 // group_gripper.setJointValueTarget(joint_values);
+//                 group_gripper.setPoseTarget(current_pose);
+//                 // moveit::core::RobotState _state = *group_gripper.getCurrentState();
+//                 // const robot_state::JointModelGroup *joint_model_group = _state.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+//                 // //Solve IK using this state
+//                 // bool _found = _state.setFromIK(joint_model_group, current_pose, 10, 0.1);
+//                 // assert(_found);
+//                 // std::vector<double> joint_values;
+//                 // _state.copyJointGroupPositions(joint_model_group, joint_values);
+//                 // group_gripper.setJointValueTarget(joint_values);
+
+
+
+                
+//                 // Plan using joint space goal
+//                 success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                
+//                 ROS_INFO_NAMED("move_group_planner", "This plan (joint-space goal) %s", success ? "SUCCEEDED" : "FAILED");
+                
+//                 show_trail(success);
+                
+//               } else {
+//                 ROS_ERROR("Did not find IK solution for pre-grasp pose");
+//                 success = false;
+//               }
+
+//         } else {
+//           ROS_ERROR("Failed to execute grasp plan");
+//           success = false;
+//         }
+//     }
+//     return success;
+// }
 
 
 int main(int argc, char **argv)
