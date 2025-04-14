@@ -107,6 +107,15 @@ private:
 void VADERPlanner::init()
 {
     //TODO joint names?
+    std::vector<std::string> gripper_joint_names = {
+        "L_joint1", "L_joint2", "L_joint3", "L_joint4", "L_joint5", "L_joint6", "L_joint7"
+    };
+    std::vector<std::string> cutter_joint_names = {
+        "R_joint1", "R_joint2", "R_joint3", "R_joint4", "R_joint5", "R_joint6", "R_joint7"
+    };
+
+    group_gripper.setJointNames(gripper_joint_names);
+    group_cutter.setJointNames(cutter_joint_names);
     display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true); /*necessary?*/
 
     visual_tools = new moveit_visual_tools::MoveItVisualTools("L_link_base");
@@ -1000,6 +1009,24 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
 //     target_pose.position.z = target_pose.position.z + peduncle.shape.dimensions[peduncle.shape.CYLINDER_HEIGHT] / 3;
 
 //     // TODO: Abhi: Add collision object for CUTTER ARM
+//     moveit_msgs::CollisionObject peduncle_collision_obj;
+    // peduncle_collision_obj.header.frame_id = group_cutter.getPlanningFrame();
+    // peduncle_collision_obj.id = "peduncle";
+
+    // shape_msgs::SolidPrimitive primitive;
+    // primitive.type = primitive.CYLINDER;
+    // primitive.dimensions.resize(2);
+    // primitive.dimensions[primitive.CYLINDER_HEIGHT] = peduncle.shape.dimensions[0];
+    // primitive.dimensions[primitive.CYLINDER_RADIUS] = peduncle.shape.dimensions[1];
+    
+    // peduncle_collision_obj.primitives.push_back(primitive);
+    // peduncle_collision_obj.primitive_poses.push_back(peduncle.pose);
+    // peduncle_collision_obj.operation = moveit_msgs::CollisionObject::ADD;
+    
+    // planning_scene_interface.applyCollisionObject(peduncle_collision_obj);
+    // ROS_INFO("Added peduncle collision object with height %f and radius %f", 
+    //          primitive.dimensions[primitive.CYLINDER_HEIGHT], 
+    //          primitive.dimensions[primitive.CYLINDER_RADIUS]);
 
 //     group_cutter.setPoseTarget(target_pose);
 
