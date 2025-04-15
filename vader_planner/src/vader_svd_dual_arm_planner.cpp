@@ -715,7 +715,7 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
             ROS_INFO("Successfully moved to grasp position");
             geometry_msgs::Pose current_pose = end_effector_pose;
         
-            tf::Vector3 approach(0.0, 0.0, 0.1);
+            tf::Vector3 approach(0.0, 0.0, req.reserve_dist + 0.05);
 
             tf::Quaternion curr_quat;
             tf::quaternionMsgToTF(current_pose.orientation, curr_quat);
@@ -753,7 +753,7 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
     tf::Vector3 peduncle_centroid(
         req.pepper.peduncle_data.pose.position.x,
         req.pepper.peduncle_data.pose.position.y,
-        req.pepper.peduncle_data.pose.position.z + 0.01);
+        req.pepper.peduncle_data.pose.position.z);
 
     double radius = req.reserve_dist;
 
