@@ -33,7 +33,7 @@
 #include <vader_msgs/Pepper.h>
 #include <vader_msgs/Peduncle.h>
 #include <vader_msgs/Fruit.h>
-\
+
 #include <vader_msgs/BimanualPlanRequest.h>
 #include <vader_msgs/BimanualExecRequest.h>
 #include <vader_msgs/MoveToStorageRequest.h>
@@ -66,6 +66,7 @@ public:
     ~VADERPlanner() { delete visual_tools; };
     void start();
     void stop();
+    void _create_pepper_and_peduncle();
 
 private:
     ros::NodeHandle node_handle;
@@ -78,7 +79,7 @@ private:
     geometry_msgs::Pose pregraspFinalGripperPose;
 
     uint8_t plan_type = 0;
-    double gripper_pregrasp_cam_rotated_amount = 0.0;
+    double gripper_pregrasp_cam_orig_value = 0.0;
 
     std::string PLANNING_GROUP_GRIPPER;
     std::string PLANNING_GROUP_CUTTER;
@@ -91,12 +92,16 @@ private:
     void init();
     void _add_ground_plane_collision();
     void _add_pepper_collision(vader_msgs::Pepper &pepper);
+    void _add_peduncle_collision(vader_msgs::Pepper &pepper);
+    void _clear_pepper_collision();
 
     bool _test_IK_for_gripper_pose(geometry_msgs::Pose &test_pose);
     bool _test_PC_gripper_approach(tf::Vector3 &axis, tf::Vector3 &centroid, double angle, double radius);
     bool planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Request &req);
     bool planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req);
     bool planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request &req);
+    // void planAndExecuteGripper(const vader_msgs::Pepper &pepper, double reserve_dist);
+    // void planAndExecuteCutter(const vader_msgs::Pepper &peduncle);
 
     bool planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res);
     bool execution_service_handler(vader_msgs::BimanualExecRequest::Request &req, vader_msgs::BimanualExecRequest::Response &res);
@@ -107,15 +112,6 @@ private:
 void VADERPlanner::init()
 {
     //TODO joint names?
-    std::vector<std::string> gripper_joint_names = {
-        "L_joint1", "L_joint2", "L_joint3", "L_joint4", "L_joint5", "L_joint6", "L_joint7"
-    };
-    std::vector<std::string> cutter_joint_names = {
-        "R_joint1", "R_joint2", "R_joint3", "R_joint4", "R_joint5", "R_joint6", "R_joint7"
-    };
-
-    group_gripper.setJointNames(gripper_joint_names);
-    group_cutter.setJointNames(cutter_joint_names);
     display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true); /*necessary?*/
 
     visual_tools = new moveit_visual_tools::MoveItVisualTools("L_link_base");
@@ -133,35 +129,36 @@ void VADERPlanner::init()
              PLANNING_GROUP_GRIPPER.c_str(), PLANNING_GROUP_CUTTER.c_str());
 }
 
-void VADERPlanner::_add_ground_plane_collision() {
+void VADERPlanner::_add_ground_plane_collision()
+{
+    // Add the ground plane
     moveit_msgs::CollisionObject ground_plane;
     ground_plane.header.frame_id = group_gripper.getPlanningFrame();
     ground_plane.id = "ground_plane";
 
-    // Define the cuboid dimensions
+    // Define the ground plane as a flat box
     shape_msgs::SolidPrimitive ground_primitive;
     ground_primitive.type = ground_primitive.BOX;
     ground_primitive.dimensions.resize(3);
     ground_primitive.dimensions[0] = 2.0;  // Length in x-direction
     ground_primitive.dimensions[1] = 2.0;  // Width in y-direction
-    ground_primitive.dimensions[2] = 0.01; // Height in z-direction
+    ground_primitive.dimensions[2] = 0.01; // Height in z-direction (flat)
 
-    // Define the pose of the cuboid
     geometry_msgs::Pose ground_pose;
     ground_pose.position.x = -1.0;
     ground_pose.position.y = 0.0;
-    ground_pose.position.z = -0.01 - (ground_primitive.dimensions[2] / 2.0);
-    ground_pose.orientation.w = 1.0; // No rotation
+    ground_pose.position.z = -0.005; // Slightly below the robot's base
+    ground_pose.orientation.w = 1.0;
 
     ground_plane.primitives.push_back(ground_primitive);
     ground_plane.primitive_poses.push_back(ground_pose);
     ground_plane.operation = moveit_msgs::CollisionObject::ADD;
 
-    // Add the ground plane to the planning scene
+    // Apply the ground plane to the planning scene
     planning_scene_interface.applyCollisionObject(ground_plane);
 }
-
-void VADERPlanner::_add_pepper_collision(vader_msgs::Pepper &pepper) {
+void VADERPlanner::_add_pepper_collision(vader_msgs::Pepper &pepper)
+{
     moveit_msgs::CollisionObject cylinder_object;
     cylinder_object.header.frame_id = group_gripper.getPlanningFrame();
     cylinder_object.id = "pepper";
@@ -177,10 +174,32 @@ void VADERPlanner::_add_pepper_collision(vader_msgs::Pepper &pepper) {
     planning_scene_interface.applyCollisionObject(cylinder_object);
 }
 
+void VADERPlanner::_add_peduncle_collision(vader_msgs::Pepper &pepper)
+{
+    moveit_msgs::CollisionObject cylinder_object;
+    cylinder_object.header.frame_id = group_cutter.getPlanningFrame();
+    cylinder_object.id = "peduncle";
+
+    shape_msgs::SolidPrimitive primitive;
+    primitive.type = primitive.CYLINDER;
+    primitive.dimensions.resize(2);
+    primitive.dimensions[primitive.CYLINDER_HEIGHT] = pepper.fruit_data.shape.dimensions[0];
+    primitive.dimensions[primitive.CYLINDER_RADIUS] = pepper.fruit_data.shape.dimensions[1];
+    cylinder_object.primitives.push_back(primitive);
+    cylinder_object.primitive_poses.push_back(pepper.fruit_data.pose);
+    cylinder_object.operation = moveit_msgs::CollisionObject::ADD;
+    planning_scene_interface.applyCollisionObject(cylinder_object);
+}
+
+void VADERPlanner::_clear_pepper_collision() {
+    planning_scene_interface.removeCollisionObjects({"pepper"});
+}
+
 void VADERPlanner::start()
 {
     ROS_INFO("Spinning");
     spinner.start();
+    _create_pepper_and_peduncle();
 }
 
 void VADERPlanner::stop()
@@ -206,7 +225,9 @@ void VADERPlanner::show_trail(bool plan_result)
 
 bool VADERPlanner::planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res){
     if(req.mode == req.CUTTER_GRASP_PLAN) {
-        // Cutter
+        // Cutter logic here
+        res.result = false;
+        return false;
     } else {
         // Gripper
         plan_type = req.mode; //Store which plan is being used for gripper and check this when executing
@@ -241,11 +262,12 @@ bool VADERPlanner::execution_service_handler(vader_msgs::BimanualExecRequest::Re
             return false;
         }
 
-        if (plan_type == req.GRIPPER_GRASP_EXEC) {
-            planning_scene_interface.removeCollisionObjects({"pepper"});
-        }
+        
 
         bool exec_ok = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        if (plan_type == req.GRIPPER_GRASP_EXEC) {
+            _clear_pepper_collision();
+        }
         res.result = exec_ok;
         return exec_ok;
     }
@@ -269,9 +291,18 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
              bin_location_pose.position.x, bin_location_pose.position.y, bin_location_pose.position.z,
              bin_location_pose.orientation.x, bin_location_pose.orientation.y, bin_location_pose.orientation.z, bin_location_pose.orientation.w);
     
+    // moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+    // const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+    // bool _found = state_copy.setFromIK(joint_model_group, bin_location_pose, 10, 0.1);
+    // assert(_found);
+    // std::vector<double> joint_values;
+    // state_copy.copyJointGroupPositions(joint_model_group, joint_values);
+
+    // group_gripper.setJointValueTarget(joint_values);
+
     group_gripper.setPoseTarget(bin_location_pose);
     bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-
+    show_trail(success);
     if (success)
     {
         ROS_INFO("Plan to storage location succeeded. Executing...");
@@ -290,34 +321,18 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
     }
 }
 
-// static tf::Vector3 _calculate_closest_PC_point(tf::Vector3 &axis, tf::Vector3 &centroid, double radius) {
-//     // Generate two orthonormal vectors u,v that are perpendicular to pepper_axis
-//     tf::Vector3 u, v;
-
-//     // Find first perpendicular vector u
-//     tf::Vector3 ref(0, 0, 1);
-//     if (std::abs(axis.dot(ref)) > 0.9)
-//     {
-//     // If cylinder axis is nearly vertical, use a different reference
-//     ref = tf::Vector3(1, 0, 0);
-//     }
-
-//     u = axis.cross(ref).normalized();
-//     v = axis.cross(u).normalized();
-
-//     // Calculate the values A and B
-//     double A = -centroid.dot(u); // Note the negative signs as per the formula
-//     double B = -centroid.dot(v);
-
-//     // Calculate theta_min to find the closest point to origin
-//     double theta_min = atan2(B, A);
-
-//     // Calculate the closest point on the parametric circle
-//     tf::Vector3 closest_point = pepper_centroid + radius * (cos(theta_min) * u + sin(theta_min) * v);
-//     return closest_point;
-// }
-
 static tf::Quaternion _get_norm_quat_from_axes(tf::Vector3 &ax_x, tf::Vector3 &ax_y, tf::Vector3 &ax_z) {
+    // Ensure the axes are normalized
+    ax_x.normalize();
+    ax_y.normalize();
+    ax_z.normalize();
+
+    // Check for invalid axes (e.g., zero-length vectors)
+    if (ax_x.length() < 1e-6 || ax_y.length() < 1e-6 || ax_z.length() < 1e-6) {
+        ROS_ERROR("Invalid axes provided for quaternion calculation. Returning identity quaternion.");
+        return tf::Quaternion(0.0, 0.0, 0.0, 1.0); // Identity quaternion
+    }
+
     // Create rotation matrix for end effector orientation
     tf::Matrix3x3 rot_matrix;
     rot_matrix.setValue(
@@ -342,10 +357,10 @@ static geometry_msgs::Pose _get_pose_from_pos_and_quat(tf::Vector3 &pos, tf::Qua
 }
 
 bool VADERPlanner::_test_IK_for_gripper_pose(geometry_msgs::Pose &test_pose){
-    moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
-    const robot_state::JointModelGroup *joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
+    moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+    const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
 
-    bool success = current_state->setFromIK(joint_model_group, test_pose, 10, 0.1);
+    bool success = state_copy.setFromIK(joint_model_group, test_pose, 0.1);
     return success;
 }
 
@@ -441,8 +456,11 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
     // Log end effector pose
     ROS_INFO("End effector position: (%f, %f, %f)", end_effector_pose.position.x, end_effector_pose.position.y, end_effector_pose.position.z);
     ROS_INFO("End effector orientation: (%f, %f, %f, %f)", end_effector_pose.orientation.x, end_effector_pose.orientation.y, end_effector_pose.orientation.z, end_effector_pose.orientation.w);
-
-    group_gripper.setPoseTarget(end_effector_pose);
+    ROS_INFO("Quaternion calculation inputs:");
+    ROS_INFO("X-axis: (%f, %f, %f)", ee_x.x(), ee_x.y(), ee_x.z());
+    ROS_INFO("Y-axis: (%f, %f, %f)", ee_y.x(), ee_y.y(), ee_y.z());
+    ROS_INFO("Z-axis: (%f, %f, %f)", ee_z.x(), ee_z.y(), ee_z.z());
+    // group_gripper.setPoseTarget(end_effector_pose);
 
     bool found_ik = _test_IK_for_gripper_pose(end_effector_pose);
     
@@ -484,7 +502,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
             {
                 ROS_INFO("Found IK solution at alternative angle: theta = %.2f radians (%.2f degrees from optimal)", test_angle, i * 30.0);
                 end_effector_pose = test_pose;
-                group_gripper.setPoseTarget(end_effector_pose);
+                // group_gripper.setPoseTarget(end_effector_pose);
                 break;
             }
         }
@@ -518,7 +536,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
             {
             ROS_INFO("Found IK solution with adjusted radius: %.2f m", test_radius);
             end_effector_pose = test_pose;
-            group_gripper.setPoseTarget(end_effector_pose);
+            // group_gripper.setPoseTarget(end_effector_pose);
             break;
             }
         }
@@ -526,19 +544,22 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
     }
     bool success;
     if(found_ik){
-        moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
-        const robot_state::JointModelGroup *joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
-        current_state->setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
-      
+        moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+        const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+        bool _found = state_copy.setFromIK(joint_model_group, end_effector_pose, 0.1);
+        assert(_found);
+
         std::vector<double> joint_values;
-        current_state->copyJointGroupPositions(joint_model_group, joint_values);
+        state_copy.copyJointGroupPositions(joint_model_group, joint_values);
         ROS_INFO("Found valid IK solution");
 
         //Add 90-deg cam rotation
         if(req.gripper_camera_rotation == req.GRIPPER_DO_ROTATE_CAMERA) {
             int num_joints = joint_values.size();
+            gripper_pregrasp_cam_orig_value = joint_values[num_joints - 1];
             if (num_joints > 0)
             {
+
                 // Rotate only the final joint by 90 degrees
                 joint_values[num_joints - 1] += M_PI / 2.0;
 
@@ -555,13 +576,13 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
                 ROS_INFO("Final joint before rotation: %f, after rotation: %f radians",
                     joint_values[num_joints - 1] - M_PI / 2.0, joint_values[num_joints - 1]);
             }
-            gripper_pregrasp_cam_rotated_amount = M_PI / 2.0;
         }
 
         pregraspFinalGripperPose = end_effector_pose;
     
         group_gripper.setJointValueTarget(joint_values);
         success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        show_trail(success);
     
     }else{
         ROS_ERROR("Could not find IK solution for any tested pose");
@@ -571,76 +592,58 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
     return success;
 }
 
-bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
-    // Add peduncle as collision object (if needed)
-    // _add_peduncle_collision(req.pepper.peduncle_data);  // This function would need to be implemented
+bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
 
-    tf::Quaternion peduncle_quat;
-    tf::quaternionMsgToTF(req.pepper.peduncle_data.pose.orientation, peduncle_quat);
+    //display pepper as collision obj
+    _add_pepper_collision(req.pepper);
 
-    tf::Vector3 peduncle_axis = tf::quatRotate(peduncle_quat, tf::Vector3(0, 0, 1)).normalized();
+    tf::Quaternion pepper_quat;
+    tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, pepper_quat);
 
-    tf::Vector3 peduncle_centroid(
-        req.pepper.peduncle_data.pose.position.x,
-        req.pepper.peduncle_data.pose.position.y,
-        req.pepper.peduncle_data.pose.position.z
+    tf::Vector3 pepper_axis = tf::quatRotate(pepper_quat, tf::Vector3(0, 0, 1)).normalized();
+
+    tf::Vector3 pepper_centroid(
+        req.pepper.fruit_data.pose.position.x,
+        req.pepper.fruit_data.pose.position.y,
+        req.pepper.fruit_data.pose.position.z
     );
 
     double radius = req.reserve_dist;
 
-    // Generate two orthonormal vectors u,v that are perpendicular to peduncle_axis
+    // Generate two orthonormal vectors u,v that are perpendicular to pepper_axis
     tf::Vector3 u, v;
 
     // Find first perpendicular vector u
     tf::Vector3 ref(0, 0, 1);
-    if (std::abs(peduncle_axis.dot(ref)) > 0.9)
+    if (std::abs(pepper_axis.dot(ref)) > 0.9)
     {
         // If cylinder axis is nearly vertical, use a different reference
         ref = tf::Vector3(1, 0, 0);
     }
 
-    u = peduncle_axis.cross(ref).normalized();
-    v = peduncle_axis.cross(u).normalized();
+    u = pepper_axis.cross(ref).normalized();
+    v = pepper_axis.cross(u).normalized();
 
     // Calculate the values A and B
-    double A = -peduncle_centroid.dot(u); // Note the negative signs as per the formula
-    double B = -peduncle_centroid.dot(v);
+    double A = -pepper_centroid.dot(u); // Note the negative signs as per the formula
+    double B = -pepper_centroid.dot(v);
 
     // Calculate theta_min to find the closest point to origin
     double theta_min = atan2(B, A);
-    
-    // Add offset to position the cutter opposite to the gripper
-    // This will position the cutter approximately 180 degrees from where the gripper would be
-    double theta_offset = M_PI;  // 180 degrees
-    double theta_cutter = theta_min + theta_offset;
 
     // Calculate the closest point on the parametric circle
-    tf::Vector3 cutter_point = peduncle_centroid + radius * (cos(theta_cutter) * u + sin(theta_cutter) * v);
+    tf::Vector3 closest_point = pepper_centroid + radius * (cos(theta_min) * u + sin(theta_min) * v);
 
-    ROS_INFO("Cutter approach point on circle: (%f, %f, %f)",
-        cutter_point.x(), cutter_point.y(), cutter_point.z());
+    ROS_INFO("Closest point on circle: (%f, %f, %f)",
+        closest_point.x(), closest_point.y(), closest_point.z());
 
-    // Calculate end effector orientation
-    // The cutter z-axis should point from the goal point to the peduncle centroid
-    tf::Vector3 ee_z = (peduncle_centroid - cutter_point).normalized();
 
-    // Position the cutter to cut the peduncle near its base (closer to pepper)
-    // Move the cutting point a bit along the peduncle axis towards the pepper
-    tf::Vector3 cutting_point = peduncle_centroid + 
-                               (req.pepper.peduncle_data.shape.dimensions[0] * 0.25) * (-peduncle_axis);
+    //Calculate end effector orientation
+    // The gripper z-axis should point from the goal point to the cylinder centroid
+    tf::Vector3 ee_z = (pepper_centroid - closest_point).normalized();
 
-    // Ensure end effector y-axis is perpendicular to peduncle axis
-    tf::Vector3 ee_y = peduncle_axis.cross(ee_z).normalized();
-
-    // Check if the cross product result is valid (non-zero length)
-    if (ee_y.length() < 0.1)
-    {
-        // If ee_z is nearly parallel to peduncle_axis, use different approach
-        tf::Vector3 world_up(0, 0, 1);
-        ee_y = (std::abs(ee_z.dot(world_up)) > 0.9) ? 
-               tf::Vector3(1, 0, 0).cross(ee_z).normalized() : 
-               world_up.cross(ee_z).normalized();
-    }
+    // Ensure end effector y-axis is perpendicular to cylinder axis
+    tf::Vector3 ee_y = pepper_axis.cross(ee_z).normalized();
 
     // Calculate end effector x-axis to complete right-handed coordinate system
     tf::Vector3 ee_x = ee_y.cross(ee_z).normalized();
@@ -648,205 +651,83 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
     tf::Quaternion ee_quat = _get_norm_quat_from_axes(ee_x, ee_y, ee_z);
 
     // Set end effector pose
-    geometry_msgs::Pose end_effector_pose = _get_pose_from_pos_and_quat(cutter_point, ee_quat);
+    geometry_msgs::Pose end_effector_pose = _get_pose_from_pos_and_quat(closest_point, ee_quat);
 
     // Log end effector pose
-    ROS_INFO("Cutter end effector position: (%f, %f, %f)", 
-             end_effector_pose.position.x, end_effector_pose.position.y, end_effector_pose.position.z);
-    ROS_INFO("Cutter end effector orientation: (%f, %f, %f, %f)", 
-             end_effector_pose.orientation.x, end_effector_pose.orientation.y, 
-             end_effector_pose.orientation.z, end_effector_pose.orientation.w);
+    ROS_INFO("End effector position: (%f, %f, %f)", end_effector_pose.position.x, end_effector_pose.position.y, end_effector_pose.position.z);
+    ROS_INFO("End effector orientation: (%f, %f, %f, %f)", end_effector_pose.orientation.x, end_effector_pose.orientation.y, end_effector_pose.orientation.z, end_effector_pose.orientation.w);
 
-    group_cutter.setPoseTarget(end_effector_pose);
+    // group_gripper.setPoseTarget(end_effector_pose);
 
-    // Test if IK solution exists for this pose
-    moveit::core::RobotStatePtr current_state = group_cutter.getCurrentState();
-    const robot_state::JointModelGroup *joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_CUTTER);
-    bool found_ik = current_state->setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
+    bool found_ik = _test_IK_for_gripper_pose(end_effector_pose);
     
     if(!found_ik) {
-        ROS_WARN("Initial IK solution failed for cutter, trying alternative points on the parametric circle");
-        
+
+        ROS_WARN("Initial IK solution failed, trying alternative points on the parametric circle");
         // Try different angles around the parametric circle in 30-degree increments
         for (int i = 1; i <= 11 && !found_ik; i++)
         {
             // Try i*30 degrees away from the optimal angle
-            double test_angle = theta_cutter + i * (M_PI / 6);
+            double test_angle = theta_min + i * (M_PI / 6);
 
             // Calculate test point
-            tf::Vector3 test_point = peduncle_centroid + radius * (cos(test_angle) * u + sin(test_angle) * v);
+            tf::Vector3 test_point = pepper_centroid + radius * (cos(test_angle) * u + sin(test_angle) * v);
 
-            // Calculate orientation (cutter z-axis still points at peduncle centroid)
-            tf::Vector3 test_ee_z = (peduncle_centroid - test_point).normalized();
-            tf::Vector3 test_ee_y = peduncle_axis.cross(test_ee_z).normalized();
+            // Calculate orientation (gripper z-axis still points at cylinder centroid)
+            tf::Vector3 test_ee_z = (pepper_centroid - test_point).normalized();
+            tf::Vector3 test_ee_y = pepper_axis.cross(test_ee_z).normalized();
 
             // Check if the cross product result is valid (non-zero length)
             if (test_ee_y.length() < 0.1)
             {
-                // If ee_z is nearly parallel to peduncle_axis, use different approach
+                // If ee_z is nearly parallel to pepper_axis, use different approach
                 tf::Vector3 world_up(0, 0, 1);
-                test_ee_y = (std::abs(test_ee_z.dot(world_up)) > 0.9) ? 
-                           tf::Vector3(1, 0, 0).cross(test_ee_z).normalized() : 
-                           world_up.cross(test_ee_z).normalized();
+                test_ee_y = (std::abs(test_ee_z.dot(world_up)) > 0.9) ? tf::Vector3(1, 0, 0).cross(test_ee_z).normalized() : world_up.cross(test_ee_z).normalized();
             }
 
             tf::Vector3 test_ee_x = test_ee_y.cross(test_ee_z).normalized();
 
             // Create rotation matrix and convert to quaternion
             tf::Quaternion test_quat = _get_norm_quat_from_axes(test_ee_x, test_ee_y, test_ee_z);
-            geometry_msgs::Pose test_pose = _get_pose_from_pos_and_quat(test_point, test_quat);
+            geometry_msgs::Pose test_pose = _get_pose_from_pos_and_quat(closest_point, test_quat);
+
 
             // Try IK for this pose
-            found_ik = current_state->setFromIK(joint_model_group, test_pose, 10, 0.1);
+            found_ik = _test_IK_for_gripper_pose(test_pose);
 
             if (found_ik)
             {
-                ROS_INFO("Found cutter IK solution at alternative angle: theta = %.2f radians (%.2f degrees from optimal)", 
-                         test_angle, i * 30.0);
+                ROS_INFO("Found IK solution at alternative angle: theta = %.2f radians (%.2f degrees from optimal)", test_angle, i * 30.0);
                 end_effector_pose = test_pose;
-                group_cutter.setPoseTarget(end_effector_pose);
-                cutter_point = test_point;
                 break;
             }
         }
-
-        // If circle positions fail, try with adjusted radius
-        if (!found_ik)
-        {
-            ROS_WARN("Circle position IK solutions failed for cutter, trying with adjusted radius");
-
-            // Try different radii
-            std::vector<double> test_radii = {0.25, 0.15, 0.35, 0.2, 0.4};
-
-            for (const auto &test_radius : test_radii)
-            {
-                // Try the optimal angle first with new radius
-                tf::Vector3 test_point = peduncle_centroid + test_radius * (cos(theta_cutter) * u + sin(theta_cutter) * v);
-
-                // Calculate orientation
-                tf::Vector3 test_ee_z = (peduncle_centroid - test_point).normalized();
-                tf::Vector3 test_ee_y = peduncle_axis.cross(test_ee_z).normalized();
-                
-                if (test_ee_y.length() < 0.1)
-                {
-                    tf::Vector3 world_up(0, 0, 1);
-                    test_ee_y = (std::abs(test_ee_z.dot(world_up)) > 0.9) ? 
-                               tf::Vector3(1, 0, 0).cross(test_ee_z).normalized() : 
-                               world_up.cross(test_ee_z).normalized();
-                }
-                
-                tf::Vector3 test_ee_x = test_ee_y.cross(test_ee_z).normalized();
-
-                // Create rotation matrix and convert to quaternion
-                tf::Quaternion test_quat = _get_norm_quat_from_axes(test_ee_x, test_ee_y, test_ee_z);
-                geometry_msgs::Pose test_pose = _get_pose_from_pos_and_quat(test_point, test_quat);
-
-                // Try IK for this pose
-                found_ik = current_state->setFromIK(joint_model_group, test_pose, 10, 0.1);
-
-                if (found_ik)
-                {
-                    ROS_INFO("Found cutter IK solution with adjusted radius: %.2f m", test_radius);
-                    end_effector_pose = test_pose;
-                    group_cutter.setPoseTarget(end_effector_pose);
-                    cutter_point = test_point;
-                    break;
-                }
-            }
-        }
     }
-
     bool success;
     if(found_ik){
+        moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+        const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+        bool _found = state_copy.setFromIK(joint_model_group, end_effector_pose, 0.1);
+        assert(_found);
+
         std::vector<double> joint_values;
-        current_state->copyJointGroupPositions(joint_model_group, joint_values);
-        ROS_INFO("Found valid IK solution for cutter pregrasp");
-        
-        // Plan to the pregrasp pose
-        group_cutter.setJointValueTarget(joint_values);
-        success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-        
-        if (success) {
-            ROS_INFO("Successfully planned cutter pregrasp motion");
-            
-            // Execute the plan to move to pregrasp position
-            bool exec_result = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            
-            if (exec_result) {
-                ROS_INFO("Successfully moved cutter to pregrasp position");
-                
-                // Now plan the approach to cutting position
-                // Calculate the approach vector along the z-axis of the end effector
-                tf::Vector3 approach(0.0, 0.0, req.reserve_dist);
-                
-                tf::Quaternion curr_quat;
-                tf::quaternionMsgToTF(end_effector_pose.orientation, curr_quat);
-                tf::Matrix3x3 curr_rot(curr_quat);
-                
-                // Transform the approach vector by the rotation matrix
-                tf::Vector3 transformed_approach = curr_rot * approach;
-                
-                // Calculate the final cutting position
-                geometry_msgs::Pose cutting_pose = end_effector_pose;
-                cutting_pose.position.x += transformed_approach.x();
-                cutting_pose.position.y += transformed_approach.y();
-                cutting_pose.position.z += transformed_approach.z();
-                
-                // Check IK for the cutting pose
-                found_ik = current_state->setFromIK(joint_model_group, cutting_pose, 10, 0.1);
-                
-                if (found_ik) {
-                    group_cutter.setPoseTarget(cutting_pose);
-                    
-                    // Plan the approach to cutting position
-                    success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-                    
-                    if (success) {
-                        ROS_INFO("Successfully planned cutter approach motion");
-                        show_trail(success);
-                    } else {
-                        ROS_ERROR("Failed to plan cutter approach motion");
-                    }
-                } else {
-                    ROS_ERROR("No IK solution found for cutter final pose");
-                    success = false;
-                }
-            } else {
-                ROS_ERROR("Failed to execute cutter pregrasp motion");
-                success = false;
-            }
-        } else {
-            ROS_ERROR("Failed to plan cutter pregrasp motion");
-        }
-    } else {
-        ROS_ERROR("Could not find IK solution for any tested cutter pose");
-        success = false;
-    }
-    
-    ROS_INFO("Finished planning cutter grasp and approach");
-    return success;
-}
+        state_copy.copyJointGroupPositions(joint_model_group, joint_values);
+        ROS_INFO("Found valid IK solution");
 
-bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
-    //If we rotated for the camera before, restore that
-    moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
-    const robot_state::JointModelGroup *joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
+        pregraspFinalGripperPose = end_effector_pose;
     
-    std::vector<double> joint_values;
-    current_state->copyJointGroupPositions(joint_model_group, joint_values);
-    int num_joints = joint_values.size();
-    joint_values[num_joints - 1] -= gripper_pregrasp_cam_rotated_amount;
+        group_gripper.setJointValueTarget(joint_values);
+        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        show_trail(success);
 
-    group_gripper.setJointValueTarget(joint_values);
-    bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    if (success) {
         // Execute the plan
-        bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-        if (exec_result) {
-            ROS_INFO("Successfully moved to grasp position");
-            geometry_msgs::Pose current_pose = pregraspFinalGripperPose;
 
-            tf::Vector3 approach(0.0, 0.0, req.reserve_dist + 0.03);
+        bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        if(exec_result){
+            ROS_INFO("Successfully moved to grasp position");
+            geometry_msgs::Pose current_pose = end_effector_pose;
+        
+            tf::Vector3 approach(0.0, 0.0, 0.1);
 
             tf::Quaternion curr_quat;
             tf::quaternionMsgToTF(current_pose.orientation, curr_quat);
@@ -857,190 +738,250 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
             current_pose.position.x += transformed_approach.x();
             current_pose.position.y += transformed_approach.y();
             current_pose.position.z += transformed_approach.z();
+            
 
-            bool found_ik = _test_IK_for_gripper_pose(current_pose);
+            group_gripper.setPoseTarget(current_pose);
 
-            if (found_ik) {
-                // moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
-                // const robot_state::JointModelGroup* joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
-                // current_state->copyJointGroupPositions(joint_model_group, joint_values);
-                
-                // ROS_INFO("Found IK solution for pre-grasp pose");
-                
-                // // Use joint values target instead of pose target
-                // group_gripper.setJointValueTarget(joint_values);
-                group_gripper.setPoseTarget(current_pose);
-
-                
-                // Plan using joint space goal
-                success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-                
-                ROS_INFO_NAMED("move_group_planner", "This plan (joint-space goal) %s", success ? "SUCCEEDED" : "FAILED");
-                
-                show_trail(success);
-                
-              } else {
-                ROS_ERROR("Did not find IK solution for pre-grasp pose");
-                success = false;
-              }
-
-        } else {
-          ROS_ERROR("Failed to execute grasp plan");
-          success = false;
+            success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            show_trail(success);
         }
+    
+    }else{
+        ROS_ERROR("Could not find IK solution for any tested pose");
+        success = false;
     }
+    ROS_INFO("Finished planning");
     return success;
 }
 
-// // Rotates given pose by 90 deg around the y axis
-// geometry_msgs::Pose calculateFruitPregraspPose(const geometry_msgs::Pose &target_pose)
+bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request &req)
+{
+    // Display peduncle as a collision object
+    _add_peduncle_collision(req.pepper);
+
+    tf::Quaternion peduncle_quat;
+    tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, peduncle_quat);
+
+    tf::Vector3 peduncle_axis = tf::quatRotate(peduncle_quat, tf::Vector3(0, 0, 1)).normalized();
+
+    tf::Vector3 peduncle_centroid(
+        req.pepper.fruit_data.pose.position.x,
+        req.pepper.fruit_data.pose.position.y,
+        req.pepper.fruit_data.pose.position.z);
+
+    double radius = req.reserve_dist;
+
+    // Generate two orthonormal vectors u, v perpendicular to peduncle_axis
+    tf::Vector3 u, v;
+    tf::Vector3 ref(0, 0, 1);
+    if (std::abs(peduncle_axis.dot(ref)) > 0.9)
+        ref = tf::Vector3(1, 0, 0);
+
+    u = peduncle_axis.cross(ref).normalized();
+    v = peduncle_axis.cross(u).normalized();
+
+    // Calculate the closest point on the parametric circle
+    tf::Vector3 closest_point = peduncle_centroid + radius * u;
+
+    // Calculate end effector orientation
+    tf::Vector3 ee_z = (peduncle_centroid - closest_point).normalized();
+    tf::Vector3 ee_y = peduncle_axis.cross(ee_z).normalized();
+    tf::Vector3 ee_x = ee_y.cross(ee_z).normalized();
+
+    tf::Quaternion ee_quat = _get_norm_quat_from_axes(ee_x, ee_y, ee_z);
+    geometry_msgs::Pose end_effector_pose = _get_pose_from_pos_and_quat(closest_point, ee_quat);
+
+    // Plan motion
+    group_cutter.setPoseTarget(end_effector_pose);
+    bool success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    show_trail(success);
+
+    if (!success)
+        ROS_ERROR("Cutter grasp planning failed.");
+    return success;
+}
+
+// void VADERPlanner::planAndExecuteGripper(const vader_msgs::Pepper &pepper, double reserve_dist)
 // {
-//     // Assuming target_pose contains the necessary information to calculate the pregrasp pose
-//     tf::Quaternion pregrasp_pose;
+//     ROS_INFO("Planning and executing gripper motion to the pepper.");
 
-//     tf::Quaternion rotation_quat;
-//     rotation_quat.setRPY(-M_PI / 2, 0, 0);
+//     // Plan motion for the gripper to the pepper
+//     vader_msgs::BimanualPlanRequest::Request gripper_req;
+//     gripper_req.pepper = pepper;
+//     gripper_req.reserve_dist = reserve_dist;
 
-//     tf::Quaternion original_quat;
-//     tf::quaternionMsgToTF(target_pose.orientation, original_quat);
-
-//     pregrasp_pose = rotation_quat * original_quat;
-//     pregrasp_pose.normalize();
-
-//     geometry_msgs::Pose pregrasp_pose_result;
-//     tf::quaternionTFToMsg(pregrasp_pose, pregrasp_pose_result.orientation);
-
-//     pregrasp_pose_result.position.x = target_pose.position.x; // + 0.1; // Adjust as needed
-//     pregrasp_pose_result.position.y = target_pose.position.y; // + 0.1; // Adjust as needed
-//     pregrasp_pose_result.position.z = target_pose.position.z; // + 0.1; // Adjust as needed
-//     return pregrasp_pose_result;
-// }
-
-// geometry_msgs::Pose calculatePedunclePregraspPose(const geometry_msgs::Pose &target_pose)
-// {
-//     // Assuming target_pose contains the necessary information to calculate the pregrasp pose
-//     tf::Quaternion pregrasp_pose;
-
-//     tf::Quaternion rotation_quat;
-//     rotation_quat.setRPY(M_PI / 2, 0, 0);
-
-//     tf::Quaternion original_quat;
-//     tf::quaternionMsgToTF(target_pose.orientation, original_quat);
-
-//     pregrasp_pose = rotation_quat * original_quat;
-//     pregrasp_pose.normalize();
-
-//     geometry_msgs::Pose pregrasp_pose_result;
-//     tf::quaternionTFToMsg(pregrasp_pose, pregrasp_pose_result.orientation);
-
-//     pregrasp_pose_result.position.x = target_pose.position.x; // + 0.1; // Adjust as needed
-//     pregrasp_pose_result.position.y = target_pose.position.y; // + 0.1; // Adjust as needed
-//     pregrasp_pose_result.position.z = target_pose.position.z; // + 0.1; // Adjust as needed
-//     return pregrasp_pose_result;
-// }
-
-// void VADERPlanner::do_pepper_plan(const vader_msgs::Pepper::ConstPtr &msg)
-// {
-//     // std::cout << "Hello" << std::endl;
-//     ROS_INFO_NAMED("do_pepper_plan", "Received new pepper planning request");
-
-//     vader_msgs::Fruit fruit = msg->fruit_data;
-//     vader_msgs::Peduncle peduncle = msg->peduncle_data;
-//     // Make it a collision object
-//     moveit_msgs::CollisionObject fruit_collision_obj;
-//     fruit_collision_obj.id = "fruit_1";
-//     fruit_collision_obj.header.frame_id = "L_link_base";
-//     fruit_collision_obj.primitives.push_back(fruit.shape);
-//     fruit_collision_obj.primitive_poses.push_back(fruit.pose);
-//     fruit_collision_obj.operation = fruit_collision_obj.ADD;
-//     planning_scene_interface.applyCollisionObject(fruit_collision_obj);
-//     // Make it a collision object
-//     moveit_msgs::CollisionObject peduncle_collision_obj;
-//     peduncle_collision_obj.id = "peduncle_1";
-//     peduncle_collision_obj.header.frame_id = "L_link_base";
-//     peduncle_collision_obj.primitives.push_back(peduncle.shape);
-//     peduncle_collision_obj.primitive_poses.push_back(peduncle.pose);
-//     peduncle_collision_obj.operation = peduncle_collision_obj.ADD;
-//     planning_scene_interface.applyCollisionObject(peduncle_collision_obj);
-
-//     // Do gripper movement
-//     bool gripper_success = VADERPlanner::gripper_plan_and_execute(fruit);
-//     // bool gripper_success = true;
-//     ROS_INFO_NAMED("do_pepper_plan", "Gripper planning and execution completed");
-
-//     // Do cutter movement
-
-//     bool cutter_success = VADERPlanner::cutter_plan_and_execute(peduncle);
-
-//     // Conclude
-//     ROS_INFO_NAMED("do_pepper_plan", "Dual arm execution completed");
-//     ROS_INFO_NAMED("do_pepper_plan", "Gripper success: %s, Cutter success: %s",
-//                    gripper_success ? "true" : "false", cutter_success ? "true" : "false");
-//     // std::cout << "Done" << std::endl;
-// }
-
-// bool VADERPlanner::gripper_plan_and_execute(const vader_msgs::Fruit &fruit)
-// {
-//     ROS_INFO_NAMED("gripper_plan_and_execute", "Received new gripper planning request");
-//     geometry_msgs::Pose target_pose = calculateFruitPregraspPose(fruit.pose);
-//     target_pose.position.x = target_pose.position.x; // fruit.shape.dimensions[fruit.shape.CYLINDER_RADIUS];
-//     target_pose.position.y = target_pose.position.y - fruit.shape.dimensions[fruit.shape.CYLINDER_RADIUS];
-//     target_pose.position.z = target_pose.position.z; // + fruit.shape.dimensions[fruit.shape.CYLINDER_RADIUS];
-
-//     group_gripper.setPoseTarget(target_pose);
-
-//     bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-//     if (!success)
-//     {
-//         ROS_ERROR_NAMED("gripper_plan_and_execute", "Failed to plan for gripper");
-//         return false;
+//     bool success = planGripperPregraspPose(gripper_req);
+//     if (success) {
+//         ROS_INFO("Gripper successfully planned and executed motion to the pepper.");
+//     } else {
+//         ROS_ERROR("Gripper failed to plan or execute motion to the pepper.");
 //     }
-//     show_trail(success);
-//     bool exec_ok = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-//     return exec_ok;
 // }
 
-// bool VADERPlanner::cutter_plan_and_execute(const vader_msgs::Peduncle &peduncle)
+// void VADERPlanner::planAndExecuteCutter(const vader_msgs::Pepper &peduncle)
 // {
-//     ROS_INFO("Received new cutter planning request");
-//     geometry_msgs::Pose target_pose = calculatePedunclePregraspPose(peduncle.pose);
-//     target_pose.position.x = target_pose.position.x;                                                             // peduncle.shape.dimensions[peduncle.shape.CYLINDER_RADIUS];
-//     target_pose.position.y = target_pose.position.y + peduncle.shape.dimensions[peduncle.shape.CYLINDER_RADIUS]; // + 0.05;
-//     target_pose.position.z = target_pose.position.z + peduncle.shape.dimensions[peduncle.shape.CYLINDER_HEIGHT] / 3;
+//     ROS_INFO("Planning and executing cutter motion to the peduncle.");
 
-//     // TODO: Abhi: Add collision object for CUTTER ARM
-//     moveit_msgs::CollisionObject peduncle_collision_obj;
-    // peduncle_collision_obj.header.frame_id = group_cutter.getPlanningFrame();
-    // peduncle_collision_obj.id = "peduncle";
+//     // Set planning parameters
+//     group_cutter.setPlanningTime(10.0); // Allow more time for planning
+//     group_cutter.setNumPlanningAttempts(5); // Increase the number of planning attempts
 
-    // shape_msgs::SolidPrimitive primitive;
-    // primitive.type = primitive.CYLINDER;
-    // primitive.dimensions.resize(2);
-    // primitive.dimensions[primitive.CYLINDER_HEIGHT] = peduncle.shape.dimensions[0];
-    // primitive.dimensions[primitive.CYLINDER_RADIUS] = peduncle.shape.dimensions[1];
-    
-    // peduncle_collision_obj.primitives.push_back(primitive);
-    // peduncle_collision_obj.primitive_poses.push_back(peduncle.pose);
-    // peduncle_collision_obj.operation = moveit_msgs::CollisionObject::ADD;
-    
-    // planning_scene_interface.applyCollisionObject(peduncle_collision_obj);
-    // ROS_INFO("Added peduncle collision object with height %f and radius %f", 
-    //          primitive.dimensions[primitive.CYLINDER_HEIGHT], 
-    //          primitive.dimensions[primitive.CYLINDER_RADIUS]);
-
-//     group_cutter.setPoseTarget(target_pose);
-
+//     // Plan motion for the cutter to the peduncle
+//     group_cutter.setPoseTarget(peduncle.fruit_data.pose);
 //     bool success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-//     if (!success)
-//     {
-//         ROS_ERROR_NAMED("gripper_plan_and_execute", "Failed to plan for gripper");
-//         return false;
-//     }
-//     show_trail(success);
-//     bool exec_ok = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-//     return exec_ok;
-// }
 
+//     if (success) {
+//         ROS_INFO("Cutter successfully planned motion to the peduncle. Executing...");
+//         bool exec_result = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+//         if (exec_result) {
+//             ROS_INFO("Cutter successfully executed motion to the peduncle.");
+//         } else {
+//             ROS_ERROR("Cutter failed to execute motion to the peduncle.");
+//         }
+//     } else {
+//         ROS_ERROR("Cutter failed to plan motion to the peduncle.");
+//     }
+// }
+// bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
+//     //If we rotated for the camera before, restore that
+//     moveit::core::RobotState _state = *group_gripper.getCurrentState();
+//     const robot_state::JointModelGroup *joint_model_group = _state.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+    
+//     std::vector<double> joint_values;
+//     _state.copyJointGroupPositions(joint_model_group, joint_values);
+//     joint_values[joint_values.size() - 1] = gripper_pregrasp_cam_orig_value;
+
+//     group_gripper.setJointValueTarget(joint_values);
+//     bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+//     if (success) {
+//         // Execute the plan
+//         bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+//         if (exec_result) {
+//             ROS_INFO("Successfully moved to grasp position");
+//             geometry_msgs::Pose current_pose = pregraspFinalGripperPose;
+
+//             tf::Vector3 approach(0.0, 0.0, req.reserve_dist + 0.06);
+
+//             tf::Quaternion curr_quat;
+//             tf::quaternionMsgToTF(current_pose.orientation, curr_quat);
+//             tf::Matrix3x3 curr_rot(curr_quat);
+          
+//             tf::Vector3 transformed_approach = curr_rot * approach;
+          
+//             current_pose.position.x += transformed_approach.x();
+//             current_pose.position.y += transformed_approach.y();
+//             current_pose.position.z += transformed_approach.z();
+
+//             bool found_ik = _test_IK_for_gripper_pose(current_pose);
+
+//             if (found_ik) {
+//                 // moveit::core::RobotStatePtr current_state = group_gripper.getCurrentState();
+//                 // const robot_state::JointModelGroup* joint_model_group = current_state->getJointModelGroup(PLANNING_GROUP_GRIPPER);
+//                 // current_state->copyJointGroupPositions(joint_model_group, joint_values);
+                
+//                 // ROS_INFO("Found IK solution for pre-grasp pose");
+                
+//                 // // Use joint values target instead of pose target
+//                 // group_gripper.setJointValueTarget(joint_values);
+//                 group_gripper.setPoseTarget(current_pose);
+//                 // moveit::core::RobotState _state = *group_gripper.getCurrentState();
+//                 // const robot_state::JointModelGroup *joint_model_group = _state.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+//                 // //Solve IK using this state
+//                 // bool _found = _state.setFromIK(joint_model_group, current_pose, 10, 0.1);
+//                 // assert(_found);
+//                 // std::vector<double> joint_values;
+//                 // _state.copyJointGroupPositions(joint_model_group, joint_values);
+//                 // group_gripper.setJointValueTarget(joint_values);
+
+
+
+                
+//                 // Plan using joint space goal
+//                 success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                
+//                 ROS_INFO_NAMED("move_group_planner", "This plan (joint-space goal) %s", success ? "SUCCEEDED" : "FAILED");
+                
+//                 show_trail(success);
+                
+//               } else {
+//                 ROS_ERROR("Did not find IK solution for pre-grasp pose");
+//                 success = false;
+//               }
+
+//         } else {
+//           ROS_ERROR("Failed to execute grasp plan");
+//           success = false;
+//         }
+//     }
+//     return success;
+// }
+void VADERPlanner::_create_pepper_and_peduncle()
+{
+    // Create the pepper object
+    vader_msgs::Pepper pepper;
+    pepper.fruit_data.pose.position.x = 0.5;
+    pepper.fruit_data.pose.position.y = 0.0;
+    pepper.fruit_data.pose.position.z = 0.3; // Above the table
+    pepper.fruit_data.pose.orientation.w = 1.0;
+    pepper.fruit_data.shape.dimensions = {0.2, 0.05}; // Height and radius
+
+    _add_pepper_collision(pepper);
+
+    // Create the peduncle object
+    vader_msgs::Pepper peduncle;
+    peduncle.fruit_data.pose.position.x = 0.5;
+    peduncle.fruit_data.pose.position.y = 0.0;
+    peduncle.fruit_data.pose.position.z = 0.6; // Above the pepper
+    peduncle.fruit_data.pose.orientation.w = 1.0;
+    peduncle.fruit_data.shape.dimensions = {0.1, 0.02}; // Height and radius
+
+    _add_peduncle_collision(peduncle);
+
+    // Reset gripper to a valid initial state
+    group_gripper.setNamedTarget("home"); // Replace "home" with a valid named target for the gripper
+    if (group_gripper.move() != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+        ROS_ERROR("Failed to move gripper to the initial state.");
+        return;
+    }
+
+    // Reset cutter to a valid initial state
+    // Reset cutter to a valid initial state
+    group_cutter.setNamedTarget("home"); // Replace "home" with a valid named target for the cutter
+    if (group_cutter.move() != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+        ROS_ERROR("Failed to move cutter to the initial state. Attempting to reset manually.");
+
+        // Manually set a valid joint configuration if "home" fails
+        std::vector<double> cutter_joint_values = {0.0, -1.57, 1.57, 0.0, 0.0, 0.0, 0.0}; // Example joint values
+        group_cutter.setJointValueTarget(cutter_joint_values);
+        if (group_cutter.move() != moveit::planning_interface::MoveItErrorCode::SUCCESS) {
+            ROS_ERROR("Failed to reset cutter to a valid state. Aborting.");
+            return;
+        }
+    }
+
+    // Plan and execute gripper motions
+    vader_msgs::BimanualPlanRequest::Request gripper_req;
+    gripper_req.pepper = pepper;
+    gripper_req.reserve_dist = 0.1; // Reserve distance for pregrasp
+
+    if (planGripperPregraspPose(gripper_req)) {
+        ROS_INFO("Gripper pregrasp succeeded. Proceeding to grasp.");
+        if (!planGripperGraspPose(gripper_req)) {
+            ROS_ERROR("Gripper grasp failed.");
+        }
+    } else {
+        ROS_ERROR("Gripper pregrasp failed.");
+    }
+
+    // Plan and execute cutter motion
+    vader_msgs::BimanualPlanRequest::Request cutter_req;
+    cutter_req.pepper = peduncle;
+    cutter_req.reserve_dist = 0.0; // Directly to the peduncle center
+
+    if (!planCutterGraspPose(cutter_req)) {
+        ROS_ERROR("Cutter grasp failed.");
+    }
+}
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vader_dual_planner");
