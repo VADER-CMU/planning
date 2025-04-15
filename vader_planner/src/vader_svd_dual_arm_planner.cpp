@@ -90,13 +90,15 @@ private:
 
     void init();
     void _add_ground_plane_collision();
-    void _add_pepper_collision(vader_msgs::Pepper &pepper);
+    void _add_pepper_peduncle_collision(vader_msgs::Pepper &pepper);
     void _clear_pepper_collision();
+    void _clear_peduncle_collision();
 
     bool _test_IK_for_gripper_pose(geometry_msgs::Pose &test_pose);
     bool _test_PC_gripper_approach(tf::Vector3 &axis, tf::Vector3 &centroid, double angle, double radius);
     bool planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Request &req);
     bool planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req);
+    bool planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request &req);
 
     bool planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res);
     bool execution_service_handler(vader_msgs::BimanualExecRequest::Request &req, vader_msgs::BimanualExecRequest::Response &res);
@@ -152,7 +154,7 @@ void VADERPlanner::_add_ground_plane_collision() {
     planning_scene_interface.applyCollisionObject(ground_plane);
 }
 
-void VADERPlanner::_add_pepper_collision(vader_msgs::Pepper &pepper) {
+void VADERPlanner::_add_pepper_peduncle_collision(vader_msgs::Pepper &pepper) {
     moveit_msgs::CollisionObject cylinder_object;
     cylinder_object.header.frame_id = group_gripper.getPlanningFrame();
     cylinder_object.id = "pepper";
@@ -166,10 +168,31 @@ void VADERPlanner::_add_pepper_collision(vader_msgs::Pepper &pepper) {
     cylinder_object.primitive_poses.push_back(pepper.fruit_data.pose);
     cylinder_object.operation = moveit_msgs::CollisionObject::ADD;
     planning_scene_interface.applyCollisionObject(cylinder_object);
+
+    moveit_msgs::CollisionObject peduncle_object;
+    peduncle_object.header.frame_id = group_gripper.getPlanningFrame();
+    peduncle_object.id = "peduncle";
+
+    shape_msgs::SolidPrimitive peduncle_primitive;
+    peduncle_primitive.type = peduncle_primitive.CYLINDER;
+    peduncle_primitive.dimensions.resize(2);
+
+    peduncle_primitive.dimensions[peduncle_primitive.CYLINDER_HEIGHT] = pepper.peduncle_data.shape.dimensions[0];
+    peduncle_primitive.dimensions[peduncle_primitive.CYLINDER_RADIUS] = pepper.peduncle_data.shape.dimensions[1];
+    peduncle_object.primitives.push_back(peduncle_primitive);
+
+    peduncle_object.primitive_poses.push_back(pepper.peduncle_data.pose);
+    peduncle_object.operation = moveit_msgs::CollisionObject::ADD;
+
+    planning_scene_interface.applyCollisionObject(peduncle_object);
 }
 
 void VADERPlanner::_clear_pepper_collision() {
     planning_scene_interface.removeCollisionObjects({"pepper"});
+}
+
+void VADERPlanner::_clear_peduncle_collision() {
+    planning_scene_interface.removeCollisionObjects({"peduncle"});
 }
 
 void VADERPlanner::start()
@@ -201,7 +224,11 @@ void VADERPlanner::show_trail(bool plan_result)
 
 bool VADERPlanner::planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res){
     if(req.mode == req.CUTTER_GRASP_PLAN) {
-        // Cutter
+        // Cutter logic here
+        bool success = planCutterGraspPose(req);
+     
+        res.result = success;
+        return success;
     } else {
         // Gripper
         plan_type = req.mode; //Store which plan is being used for gripper and check this when executing
@@ -226,6 +253,7 @@ bool VADERPlanner::execution_service_handler(vader_msgs::BimanualExecRequest::Re
     if(req.mode == req.CUTTER_GRASP_EXEC) {
         // Cutter
         bool exec_ok = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        _clear_peduncle_collision();
         res.result = exec_ok;
         return exec_ok;
     } else {
@@ -236,7 +264,7 @@ bool VADERPlanner::execution_service_handler(vader_msgs::BimanualExecRequest::Re
             return false;
         }
 
-        
+    
 
         bool exec_ok = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
         if (plan_type == req.GRIPPER_GRASP_EXEC) {
@@ -358,7 +386,7 @@ bool VADERPlanner::_test_IK_for_gripper_pose(geometry_msgs::Pose &test_pose){
 bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Request &req) {
 
     //display pepper as collision obj
-    _add_pepper_collision(req.pepper);
+    _add_pepper_peduncle_collision(req.pepper);
 
     tf::Quaternion pepper_quat;
     tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, pepper_quat);
@@ -555,7 +583,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
 bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
 
     //display pepper as collision obj
-    _add_pepper_collision(req.pepper);
+    _add_pepper_peduncle_collision(req.pepper);
 
     tf::Quaternion pepper_quat;
     tf::quaternionMsgToTF(req.pepper.fruit_data.pose.orientation, pepper_quat);
@@ -713,6 +741,66 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
     return success;
 }
 
+bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request &req)
+{
+    _add_pepper_peduncle_collision(req.pepper);
+
+    tf::Quaternion peduncle_quat;
+    tf::quaternionMsgToTF(req.pepper.peduncle_data.pose.orientation, peduncle_quat);
+
+    tf::Vector3 peduncle_axis = tf::quatRotate(peduncle_quat, tf::Vector3(0, 0, 1)).normalized();
+
+    tf::Vector3 peduncle_centroid(
+        req.pepper.peduncle_data.pose.position.x,
+        req.pepper.peduncle_data.pose.position.y,
+        req.pepper.peduncle_data.pose.position.z + 0.01);
+
+    double radius = req.reserve_dist;
+
+    // Generate two orthonormal vectors u, v perpendicular to peduncle_axis
+    tf::Vector3 u, v;
+    tf::Vector3 ref(0, 0, 1);
+    if (std::abs(peduncle_axis.dot(ref)) > 0.9)
+        ref = tf::Vector3(1, 0, 0);
+
+    u = peduncle_axis.cross(ref).normalized();
+    v = peduncle_axis.cross(u).normalized();
+
+    // Calculate the closest point on the parametric circle
+    tf::Vector3 closest_point = peduncle_centroid + radius * u;
+
+    // Calculate end effector orientation
+    tf::Vector3 ee_z = (peduncle_centroid - closest_point).normalized();
+    tf::Vector3 ee_y = peduncle_axis.cross(ee_z).normalized();
+    tf::Vector3 ee_x = ee_y.cross(ee_z).normalized();
+    tf::Quaternion ee_quat = _get_norm_quat_from_axes(ee_x, ee_y, ee_z);
+
+    // Create a rotation matrix for a 90-degree clockwise rotation around the z-axis
+    tf::Matrix3x3 rotation_matrix(
+        0, 1, 0,  // First column
+        -1, 0, 0, // Second column
+        0, 0, 1   // Third column
+    );
+
+    // Apply the rotation matrix to the quaternion
+    tf::Quaternion rotation_quat;
+    rotation_matrix.getRotation(rotation_quat);
+    ee_quat = ee_quat * rotation_quat;
+    ee_quat.normalize();
+
+    geometry_msgs::Pose end_effector_pose = _get_pose_from_pos_and_quat(closest_point, ee_quat);
+    ROS_INFO("End effector position: (%f, %f, %f)", end_effector_pose.position.x, end_effector_pose.position.y, end_effector_pose.position.z);
+    ROS_INFO("End effector orientation: (%f, %f, %f, %f)", end_effector_pose.orientation.x, end_effector_pose.orientation.y, end_effector_pose.orientation.z, end_effector_pose.orientation.w);
+
+    // Plan motion
+    group_cutter.setPoseTarget(end_effector_pose);
+    bool success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    show_trail(success);
+
+    if (!success)
+        ROS_ERROR("Cutter grasp planning failed.");
+    return success;
+}
 
 // bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request &req){
 //     //If we rotated for the camera before, restore that

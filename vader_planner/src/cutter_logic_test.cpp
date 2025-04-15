@@ -199,7 +199,6 @@ void VADERPlanner::start()
 {
     ROS_INFO("Spinning");
     spinner.start();
-    _create_pepper_and_peduncle();
 }
 
 void VADERPlanner::stop()
@@ -789,9 +788,31 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
     tf::Vector3 ee_z = (peduncle_centroid - closest_point).normalized();
     tf::Vector3 ee_y = peduncle_axis.cross(ee_z).normalized();
     tf::Vector3 ee_x = ee_y.cross(ee_z).normalized();
-
     tf::Quaternion ee_quat = _get_norm_quat_from_axes(ee_x, ee_y, ee_z);
+
+
     geometry_msgs::Pose end_effector_pose = _get_pose_from_pos_and_quat(closest_point, ee_quat);
+    // Log end effector pose
+    ROS_INFO("End effector position: (%f, %f, %f)", end_effector_pose.position.x, end_effector_pose.position.y, end_effector_pose.position.z);
+    ROS_INFO("End effector orientation: (%f, %f, %f, %f)", end_effector_pose.orientation.x, end_effector_pose.orientation.y, end_effector_pose.orientation.z, end_effector_pose.orientation.w);
+
+
+    // Create a rotation matrix for a 90-degree clockwise rotation around the z-axis
+    tf::Matrix3x3 rotation_matrix(
+        0, 1, 0,  // First column
+        -1, 0, 0, // Second column
+        0, 0, 1   // Third column
+    );
+
+    // Apply the rotation matrix to the quaternion
+    tf::Quaternion rotation_quat;
+    rotation_matrix.getRotation(rotation_quat);
+    ee_quat = ee_quat * rotation_quat;
+
+    end_effector_pose = _get_pose_from_pos_and_quat(closest_point, ee_quat);
+    ROS_INFO("End effector position: (%f, %f, %f)", end_effector_pose.position.x, end_effector_pose.position.y, end_effector_pose.position.z);
+    ROS_INFO("End effector orientation: (%f, %f, %f, %f)", end_effector_pose.orientation.x, end_effector_pose.orientation.y, end_effector_pose.orientation.z, end_effector_pose.orientation.w);
+
 
     // Plan motion
     group_cutter.setPoseTarget(end_effector_pose);
