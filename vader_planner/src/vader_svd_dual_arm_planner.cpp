@@ -103,7 +103,7 @@ private:
     bool planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res);
     bool execution_service_handler(vader_msgs::BimanualExecRequest::Request &req, vader_msgs::BimanualExecRequest::Response &res);
     bool move_to_storage_service_handler(vader_msgs::MoveToStorageRequest::Request &req, vader_msgs::MoveToStorageRequest::Response &res);
-    void show_trail(bool plan_result);
+    void show_trail(bool plan_result, bool is_planner);
 };
 
 void VADERPlanner::init()
@@ -206,17 +206,20 @@ void VADERPlanner::stop()
     spinner.stop();
 }
 
-void VADERPlanner::show_trail(bool plan_result)
+void VADERPlanner::show_trail(bool plan_result, bool is_planner)
 {
     if (plan_result)
     {
         ROS_INFO_NAMED("vader_planner", "Visualizing plan as trajectory line");
 
         visual_tools->deleteAllMarkers();
-        const robot_state::JointModelGroup *joint_model_group_gripper = group_gripper.getCurrentState()->getJointModelGroup(PLANNING_GROUP_GRIPPER);
-        visual_tools->publishTrajectoryLine(plan_gripper.trajectory_, joint_model_group_gripper);
-        const robot_state::JointModelGroup *joint_model_group_cutter = group_cutter.getCurrentState()->getJointModelGroup(PLANNING_GROUP_CUTTER);
-        visual_tools->publishTrajectoryLine(plan_cutter.trajectory_, joint_model_group_cutter);
+        if(is_planner){
+            const robot_state::JointModelGroup *joint_model_group_gripper = group_gripper.getCurrentState()->getJointModelGroup(PLANNING_GROUP_GRIPPER);
+            visual_tools->publishTrajectoryLine(plan_gripper.trajectory_, joint_model_group_gripper);
+        }else{
+            const robot_state::JointModelGroup *joint_model_group_cutter = group_cutter.getCurrentState()->getJointModelGroup(PLANNING_GROUP_CUTTER);
+            visual_tools->publishTrajectoryLine(plan_cutter.trajectory_, joint_model_group_cutter);
+        }
         visual_tools->trigger();
     }
 }
@@ -304,7 +307,7 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
 
     group_gripper.setPoseTarget(bin_location_pose);
     bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    show_trail(success);
+    show_trail(success, true);
     if (success)
     {
         ROS_INFO("Plan to storage location succeeded. Executing...");
@@ -570,7 +573,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
     
         group_gripper.setJointValueTarget(joint_values);
         success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-        show_trail(success);
+        show_trail(success, true);
     
     }else{
         ROS_ERROR("Could not find IK solution for any tested pose");
@@ -706,7 +709,7 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
     
         group_gripper.setJointValueTarget(joint_values);
         success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-        show_trail(success);
+        show_trail(success, true);
 
         // Execute the plan
 
@@ -730,7 +733,7 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
             group_gripper.setPoseTarget(current_pose);
 
             success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            show_trail(success);
+            show_trail(success, true);
         }
     
     }else{
@@ -743,7 +746,7 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
 
 bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request &req)
 {
-    _add_pepper_peduncle_collision(req.pepper);
+    // _add_pepper_peduncle_collision(req.pepper);
 
     tf::Quaternion peduncle_quat;
     tf::quaternionMsgToTF(req.pepper.peduncle_data.pose.orientation, peduncle_quat);
@@ -795,7 +798,7 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
     // Plan motion
     group_cutter.setPoseTarget(end_effector_pose);
     bool success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    show_trail(success);
+    show_trail(success, false);
 
     if (!success)
         ROS_ERROR("Cutter grasp planning failed.");
