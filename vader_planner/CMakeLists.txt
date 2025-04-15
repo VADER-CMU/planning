@@ -219,9 +219,9 @@ ${catkin_INCLUDE_DIRS}
 # add_dependencies(xarm_simple_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # target_link_libraries(xarm_simple_planner ${catkin_LIBRARIES})
 
-add_executable(vader_dual_arm_planner src/vader_dual_arm_planner.cpp)
-add_dependencies(vader_dual_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_dual_arm_planner ${catkin_LIBRARIES})
+# add_executable(vader_dual_arm_planner src/vader_dual_arm_planner.cpp)
+# add_dependencies(vader_dual_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_dual_arm_planner ${catkin_LIBRARIES})
 
 # add_executable(vader_single_arm_planner src/vader_single_arm_planner.cpp)
 # add_dependencies(vader_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -268,7 +268,7 @@ install(TARGETS
   # xarm_simple_planner_test
   # xarm_gripper_planner
   # vader_single_arm_planner
-  vader_dual_arm_planner
+  # vader_dual_arm_planner
   # vader_pepper_to_poi
   # vader_rohit_planner
   # vader_abhi_planner
