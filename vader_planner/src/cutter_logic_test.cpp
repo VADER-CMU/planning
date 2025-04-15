@@ -226,8 +226,10 @@ void VADERPlanner::show_trail(bool plan_result)
 bool VADERPlanner::planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res){
     if(req.mode == req.CUTTER_GRASP_PLAN) {
         // Cutter logic here
-        res.result = false;
-        return false;
+        bool success = planCutterGraspPose(req);
+     
+        res.result = success;
+        return success;
     } else {
         // Gripper
         plan_type = req.mode; //Store which plan is being used for gripper and check this when executing
