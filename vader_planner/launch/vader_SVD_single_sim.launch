@@ -3,10 +3,12 @@
   <arg name="add_gripper" default="false" />
   <arg name="add_vacuum_gripper" default="false" />
   <arg name="namespace" default="xarm"/>
-  <arg name="no_gui_plan" default="true" />
+  <arg name="no_gui_plan" default="false" />
   <arg name="add_vader_gripper" default="true" />
   <arg name="robot_type" default="xarm"/>
   <arg name="model1300" default="false" />
+  <arg name="sim_pepper_pose" default="0.0 0.0 0.0 0.0 0.0 0.0"/>
+  <arg name="bin_xyz" default="0.0 0.0 0.0"/>
 
   <arg name="velocity_control" default="false"/>
   <arg name="add_other_geometry" default="false"/>
@@ -34,14 +36,14 @@
   <include file="$(find xarm7_moveit_config)/launch/moveit_rviz_common.launch">
     <arg name="jnt_stat_source" value="[/$(arg namespace)/joint_states]" />
     <arg name="load_move_group" value="true" />
-    <arg name="pub_tf" value="true" />
+    <arg name="pub_tf" value="false" />
     <arg name="model1300" value="$(arg model1300)"/>
     <arg name="add_realsense_d435i" value="$(arg add_realsense_d435i)"/>
     <arg name="add_d435i_links" value="$(arg add_d435i_links)"/>
     <arg name="robot_sn" value="$(arg robot_sn)"/>
     <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> 
 
-    <arg name="sim_gazebo" value="false"/>
+    <arg name="sim_gazebo" value="true"/>
     <arg name="add_gripper" value="$(arg add_gripper)"/>
     <arg name="add_vacuum_gripper" value="$(arg add_vacuum_gripper)"/>
     <arg name="add_other_geometry" value="$(arg add_other_geometry)"/>
@@ -63,16 +65,16 @@
 
 
   <!-- XARM GAZEBO -->
-  <!-- <include file="$(find xarm_gazebo)/launch/xarm7_beside_table.launch">
+  <include file="$(find xarm_gazebo)/launch/xarm7_beside_table.launch">
     <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> 
+    <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/>
+    <!-- <arg name="bin_xyz" value="$(arg bin_xyz)"/> -->
 
-  </include> -->
+  </include>
 
 
   <param name="robot_name" type="str" value = "$(eval arg('robot_type') if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))"/>
   <!-- bring up the simple planner (based on move_group) that provide plan service and execution server -->
-  <!-- <node name="vader_single_arm_planner_PC" pkg="vader_planner" type="vader_single_arm_planner_PC" output="screen"/> -->
-  <node name="cam_tf" pkg="vader_planner" type="cam_transform_publisher.py" output="screen"/>
+  <node name="planner" pkg="vader_planner" type="vader_svd_single_arm_planner" output="screen"/>
 
-  <node name="keerthi_perception" pkg="keerthi_perception" type="FinePoseEstimate.py" output="screen"/>
 </launch>

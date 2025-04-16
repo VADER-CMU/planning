@@ -154,6 +154,7 @@ void VADERPlanner::_add_ground_plane_collision() {
     planning_scene_interface.applyCollisionObject(ground_plane);
 }
 
+
 void VADERPlanner::_add_pepper_peduncle_collision(vader_msgs::Pepper &pepper) {
     moveit_msgs::CollisionObject cylinder_object;
     cylinder_object.header.frame_id = group_gripper.getPlanningFrame();
@@ -279,17 +280,16 @@ bool VADERPlanner::execution_service_handler(vader_msgs::BimanualExecRequest::Re
 }
 
 bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequest::Request &req, vader_msgs::MoveToStorageRequest::Response &res){
-    // Extract bin location from the request and store it in a pose message
     geometry_msgs::Pose bin_location_pose;
-    bin_location_pose.position.x = req.binLocation.x;
-    bin_location_pose.position.y = req.binLocation.y;
-    bin_location_pose.position.z = req.binLocation.z + req.reserve_dist;
-    
-    // Set the orientation to point in the negative z direction
-    bin_location_pose.orientation.x = 0.0;
-    bin_location_pose.orientation.y = 1.0;
-    bin_location_pose.orientation.z = 0.0;
-    bin_location_pose.orientation.w = 0.0;
+     bin_location_pose.position.x = req.binLocation.position.x;
+     bin_location_pose.position.y = req.binLocation.position.y;
+     bin_location_pose.position.z = req.binLocation.position.z + req.reserve_dist;
+     
+     // Set the orientation to point in the negative z direction
+     bin_location_pose.orientation.x = req.binLocation.orientation.x;
+     bin_location_pose.orientation.y = req.binLocation.orientation.y;
+     bin_location_pose.orientation.z = req.binLocation.orientation.z;
+     bin_location_pose.orientation.w = req.binLocation.orientation.w;
     
     // Log the bin location for debugging
     ROS_INFO("Bin location received: Position(%f, %f, %f), Orientation(%f, %f, %f, %f)",

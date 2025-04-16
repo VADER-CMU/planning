@@ -243,19 +243,26 @@ ${catkin_INCLUDE_DIRS}
 # add_dependencies(vader_PR2_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # target_link_libraries(vader_PR2_planner ${catkin_LIBRARIES})
 
-add_executable(vader_single_arm_planner_PC_withrot src/vader_single_arm_planner_PC_withrot.cpp)
-add_dependencies(vader_single_arm_planner_PC_withrot ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_single_arm_planner_PC_withrot ${catkin_LIBRARIES})
+# add_executable(vader_single_arm_planner_PC_withrot src/vader_single_arm_planner_PC_withrot.cpp)
+# add_dependencies(vader_single_arm_planner_PC_withrot ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_single_arm_planner_PC_withrot ${catkin_LIBRARIES})
 
 
 add_executable(vader_svd_dual_arm_planner src/vader_svd_dual_arm_planner.cpp)
 add_dependencies(vader_svd_dual_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_svd_dual_arm_planner ${catkin_LIBRARIES})
 
-add_executable(cutter_logic_test src/cutter_logic_test.cpp)
-add_dependencies(cutter_logic_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(cutter_logic_test ${catkin_LIBRARIES})
+# add_executable(cutter_logic_test src/cutter_logic_test.cpp)
+# add_dependencies(cutter_logic_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(cutter_logic_test ${catkin_LIBRARIES})
 
+# add_executable(vader_single_arm_planner_pgtg src/vader_single_arm_planner_pgtg.cpp)
+# add_dependencies(vader_single_arm_planner_pgtg ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_single_arm_planner_pgtg ${catkin_LIBRARIES})
+
+add_executable(vader_svd_single_arm_planner src/vader_svd_single_arm_planner.cpp)
+add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
 
 # add_executable(xarm_simple_planner_test src/xarm_simple_planner_test.cpp)
 # add_dependencies(xarm_simple_planner_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -277,9 +284,11 @@ install(TARGETS
   # vader_rohit_planner
   # vader_abhi_planner
   # vader_PR2_planner
-  cutter_logic_test
-  vader_single_arm_planner_PC_withrot
+  # cutter_logic_test
+  # vader_single_arm_planner_pgtg
+  # vader_single_arm_planner_PC_withrot
   vader_svd_dual_arm_planner
+  vader_svd_single_arm_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
