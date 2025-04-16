@@ -746,17 +746,20 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::BimanualPlanRequest::Request
 
 bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request &req)
 {
-    // _add_pepper_peduncle_collision(req.pepper);
+    _add_pepper_peduncle_collision(req.pepper);
+    // _clear_pepper_collision();
 
     tf::Quaternion peduncle_quat;
     tf::quaternionMsgToTF(req.pepper.peduncle_data.pose.orientation, peduncle_quat);
 
     tf::Vector3 peduncle_axis = tf::quatRotate(peduncle_quat, tf::Vector3(0, 0, 1)).normalized();
+    double move_up_peduncle = 0.0; //move up from grasp point by 1cm
 
     tf::Vector3 peduncle_centroid(
-        req.pepper.peduncle_data.pose.position.x,
-        req.pepper.peduncle_data.pose.position.y,
-        req.pepper.peduncle_data.pose.position.z);
+        req.pepper.peduncle_data.pose.position.x + peduncle_axis.x() * move_up_peduncle,
+        req.pepper.peduncle_data.pose.position.y + peduncle_axis.y() * move_up_peduncle,
+        req.pepper.peduncle_data.pose.position.z + peduncle_axis.z() * move_up_peduncle
+    );
 
     double radius = req.reserve_dist;
 
@@ -800,8 +803,29 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
     bool success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
     show_trail(success, false);
 
+    if (success) {
+        //execute plan
+        success = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);;
+        _clear_peduncle_collision();
+        if (success) {
+            //approach pose
+            geometry_msgs::Pose current_pose = end_effector_pose;
+            tf::Vector3 approach(0.0, 0.0, req.reserve_dist - 0.04);
+            tf::Quaternion curr_quat;
+            tf::quaternionMsgToTF(end_effector_pose.orientation, curr_quat);
+            tf::Matrix3x3 curr_rot(curr_quat);
+            tf::Vector3 transformed_approach = curr_rot * approach;
+            current_pose.position.x += transformed_approach.x();
+            current_pose.position.y += transformed_approach.y();
+            current_pose.position.z += transformed_approach.z();
+            group_cutter.setPoseTarget(current_pose);
+            success = (group_cutter.plan(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            show_trail(success, false);
+        }
+    }
+
     if (!success)
-        ROS_ERROR("Cutter grasp planning failed.");
+        ROS_ERROR("Cutter grasp planning/exec failed.");
     return success;
 }
 
