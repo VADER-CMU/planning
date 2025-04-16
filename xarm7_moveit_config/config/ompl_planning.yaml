@@ -8,7 +8,6 @@
 
 planner_configs:
   CHOMP:
-  
     type: chomp
     class: "chomp_interface/CHOMPPlanner"
     max_iterations: 200  # Maximum iterations for optimization
@@ -142,7 +141,7 @@ planner_configs:
     dense_delta_fraction: 0.001  # delta fraction for interface detection. default: 0.001
     max_failures: 5000  # maximum consecutive failure limit. default: 5000
 xarm7:
-  default_planner_config: CHOMP
+  default_planner_config: RRTstar
   planner_configs:
     - SBL
     - EST

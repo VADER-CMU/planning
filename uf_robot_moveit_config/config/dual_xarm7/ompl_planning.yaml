@@ -122,7 +122,7 @@ planner_configs:
     max_failures: 5000  # maximum consecutive failure limit. default: 5000
 
 L_xarm7:
-  default_planner_config: RRTConnect
+  default_planner_config: RRTstar
   planner_configs:
     - SBL
     - EST
@@ -146,36 +146,9 @@ L_xarm7:
     - LazyPRM
     - LazyPRMstar
     - SPARS
-
-L_xarm_gripper:
-  default_planner_config: RRTConnect
-  planner_configs:
-    - SBL
-    - EST
-    - LBKPIECE
-    - BKPIECE
-    - KPIECE
-    - RRT
-    - RRTConnect
-    - RRTstar
-    - TRRT
-    - PRM
-    - PRMstar
-    - FMT
-    - BFMT
-    - PDST
-    - STRIDE
-    - BiTRRT
-    - LBTRRT
-    - BiEST
-    - ProjEST
-    - LazyPRM
-    - LazyPRMstar
-    - SPARS
-    - SPARStwo
 
 R_xarm7:
-  default_planner_config: RRTConnect
+  default_planner_config: RRTstar
   planner_configs:
     - SBL
     - EST
@@ -199,30 +172,3 @@ R_xarm7:
     - LazyPRM
     - LazyPRMstar
     - SPARS
-
-R_xarm_gripper:
-  default_planner_config: RRTConnect
-  planner_configs:
-    - SBL
-    - EST
-    - LBKPIECE
-    - BKPIECE
-    - KPIECE
-    - RRT
-    - RRTConnect
-    - RRTstar
-    - TRRT
-    - PRM
-    - PRMstar
-    - FMT
-    - BFMT
-    - PDST
-    - STRIDE
-    - BiTRRT
-    - LBTRRT
-    - BiEST
-    - ProjEST
-    - LazyPRM
-    - LazyPRMstar
-    - SPARS
-    - SPARStwo
