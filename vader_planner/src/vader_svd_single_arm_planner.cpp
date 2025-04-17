@@ -226,114 +226,134 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
  }
 
  void VADERPlanner::_add_storage_box_collision(){
-    double center_x = 0.3;
-    double center_y = 0.4;
+    double center_x = 0.35;
+    double center_y = 0.35;
     double center_z = 0.2;
 
-    double box_length = 0.24;
-    double box_width = 0.35;
+    double box_length = 0.35;
+    double box_width = 0.24;
     double box_height = 0.3;
 
-    // std::vector<moveit_msgs::CollisionObject> collision_objects;
+    double ORIENTATION_X = 0;
+    double ORIENTATION_Y = 0;
+    double ORIENTATION_Z = 0.3826834;
+    double ORIENTATION_W = 0.9238795;
 
-    // // Bottom face
-    // moveit_msgs::CollisionObject bottom_face;
-    // bottom_face.header.frame_id = group_gripper.getPlanningFrame();
-    // bottom_face.id = "storage_box_bottom";
-    // shape_msgs::SolidPrimitive bottom_primitive;
-    // bottom_primitive.type = bottom_primitive.BOX;
-    // bottom_primitive.dimensions = {box_length, box_width, 0.01};
-    // geometry_msgs::Pose bottom_pose;
-    // bottom_pose.position.x = center_x;
-    // bottom_pose.position.y = center_y;
-    // bottom_pose.position.z = center_z - (box_height / 2.0);
-    // bottom_pose.orientation.w = 1.0;
-    // bottom_face.primitives.push_back(bottom_primitive);
-    // bottom_face.primitive_poses.push_back(bottom_pose);
-    // bottom_face.operation = moveit_msgs::CollisionObject::ADD;
-    // collision_objects.push_back(bottom_face);
+    std::vector<moveit_msgs::CollisionObject> collision_objects;
 
-    // // Front face
-    // moveit_msgs::CollisionObject front_face;
-    // front_face.header.frame_id = group_gripper.getPlanningFrame();
-    // front_face.id = "storage_box_front";
-    // shape_msgs::SolidPrimitive front_primitive;
-    // front_primitive.type = front_primitive.BOX;
-    // front_primitive.dimensions = {box_length, 0.01, box_height};
-    // geometry_msgs::Pose front_pose;
-    // front_pose.position.x = center_x;
-    // front_pose.position.y = center_y - (box_width / 2.0);
-    // front_pose.position.z = center_z;
-    // front_pose.orientation.w = 1.0;
-    // front_face.primitives.push_back(front_primitive);
-    // front_face.primitive_poses.push_back(front_pose);
-    // front_face.operation = moveit_msgs::CollisionObject::ADD;
-    // collision_objects.push_back(front_face);
+    // Bottom face
+    moveit_msgs::CollisionObject bottom_face;
+    bottom_face.header.frame_id = group_gripper.getPlanningFrame();
+    bottom_face.id = "storage_box_bottom";
+    shape_msgs::SolidPrimitive bottom_primitive;
+    bottom_primitive.type = bottom_primitive.BOX;
+    bottom_primitive.dimensions = {box_length, box_width, 0.01};
+    geometry_msgs::Pose bottom_pose;
+    bottom_pose.position.x = center_x;
+    bottom_pose.position.y = center_y;
+    bottom_pose.position.z = center_z - (box_height / 2.0);
+    bottom_pose.orientation.x = ORIENTATION_X;
+    bottom_pose.orientation.y = ORIENTATION_Y;
+    bottom_pose.orientation.z = ORIENTATION_Z;
+    bottom_pose.orientation.w = ORIENTATION_W;
+    bottom_face.primitives.push_back(bottom_primitive);
+    bottom_face.primitive_poses.push_back(bottom_pose);
+    bottom_face.operation = moveit_msgs::CollisionObject::ADD;
+    collision_objects.push_back(bottom_face);
 
-    // // Back face
-    // moveit_msgs::CollisionObject back_face;
-    // back_face.header.frame_id = group_gripper.getPlanningFrame();
-    // back_face.id = "storage_box_back";
-    // shape_msgs::SolidPrimitive back_primitive;
-    // back_primitive.type = back_primitive.BOX;
-    // back_primitive.dimensions = {box_length, 0.01, box_height};
-    // geometry_msgs::Pose back_pose;
-    // back_pose.position.x = center_x;
-    // back_pose.position.y = center_y + (box_width / 2.0);
-    // back_pose.position.z = center_z;
-    // back_pose.orientation.w = 1.0;
-    // back_face.primitives.push_back(back_primitive);
-    // back_face.primitive_poses.push_back(back_pose);
-    // back_face.operation = moveit_msgs::CollisionObject::ADD;
-    // collision_objects.push_back(back_face);
+    // Front face
+    moveit_msgs::CollisionObject front_face;
+    front_face.header.frame_id = group_gripper.getPlanningFrame();
+    front_face.id = "storage_box_front";
+    shape_msgs::SolidPrimitive front_primitive;
+    front_primitive.type = front_primitive.BOX;
+    front_primitive.dimensions = {box_length, 0.01, box_height};
+    geometry_msgs::Pose front_pose;
+    front_pose.position.x = center_x + (box_width / 2.0) * 0.707;
+    front_pose.position.y = center_y - (box_width / 2.0) * 0.707;
+    front_pose.position.z = center_z;
+    front_pose.orientation.x = ORIENTATION_X;
+    front_pose.orientation.y = ORIENTATION_Y;
+    front_pose.orientation.z = ORIENTATION_Z;
+    front_pose.orientation.w = ORIENTATION_W;
+    front_face.primitives.push_back(front_primitive);
+    front_face.primitive_poses.push_back(front_pose);
+    front_face.operation = moveit_msgs::CollisionObject::ADD;
+    collision_objects.push_back(front_face);
 
-    // // Left face
-    // moveit_msgs::CollisionObject left_face;
-    // left_face.header.frame_id = group_gripper.getPlanningFrame();
-    // left_face.id = "storage_box_left";
-    // shape_msgs::SolidPrimitive left_primitive;
-    // left_primitive.type = left_primitive.BOX;
-    // left_primitive.dimensions = {0.01, box_width, box_height};
-    // geometry_msgs::Pose left_pose;
-    // left_pose.position.x = center_x - (box_length / 2.0);
-    // left_pose.position.y = center_y;
-    // left_pose.position.z = center_z;
-    // left_pose.orientation.w = 1.0;
-    // left_face.primitives.push_back(left_primitive);
-    // left_face.primitive_poses.push_back(left_pose);
-    // left_face.operation = moveit_msgs::CollisionObject::ADD;
-    // collision_objects.push_back(left_face);
+    // Back face
+    moveit_msgs::CollisionObject back_face;
+    back_face.header.frame_id = group_gripper.getPlanningFrame();
+    back_face.id = "storage_box_back";
+    shape_msgs::SolidPrimitive back_primitive;
+    back_primitive.type = back_primitive.BOX;
+    back_primitive.dimensions = {box_length, 0.01, box_height};
+    geometry_msgs::Pose back_pose;
+    back_pose.position.x = center_x - (box_width / 2.0) * 0.707;
+    back_pose.position.y = center_y + (box_width / 2.0) * 0.707;
+    back_pose.position.z = center_z;    
+    back_pose.orientation.x = ORIENTATION_X;
+    back_pose.orientation.y = ORIENTATION_Y;
+    back_pose.orientation.z = ORIENTATION_Z;
+    back_pose.orientation.w = ORIENTATION_W;
+    back_face.primitives.push_back(back_primitive);
+    back_face.primitive_poses.push_back(back_pose);
+    back_face.operation = moveit_msgs::CollisionObject::ADD;
+    collision_objects.push_back(back_face);
 
-    // // Right face
-    // moveit_msgs::CollisionObject right_face;
-    // right_face.header.frame_id = group_gripper.getPlanningFrame();
-    // right_face.id = "storage_box_right";
-    // shape_msgs::SolidPrimitive right_primitive;
-    // right_primitive.type = right_primitive.BOX;
-    // right_primitive.dimensions = {0.01, box_width, box_height};
-    // geometry_msgs::Pose right_pose;
-    // right_pose.position.x = center_x + (box_length / 2.0);
-    // right_pose.position.y = center_y;
-    // right_pose.position.z = center_z;
-    // right_pose.orientation.w = 1.0;
-    // right_face.primitives.push_back(right_primitive);
-    // right_face.primitive_poses.push_back(right_pose);
-    // right_face.operation = moveit_msgs::CollisionObject::ADD;
-    // collision_objects.push_back(right_face);
+    // Left face
+    moveit_msgs::CollisionObject left_face;
+    left_face.header.frame_id = group_gripper.getPlanningFrame();
+    left_face.id = "storage_box_left";
+    shape_msgs::SolidPrimitive left_primitive;
+    left_primitive.type = left_primitive.BOX;
+    left_primitive.dimensions = {0.01, box_width, box_height};
+    geometry_msgs::Pose left_pose;
+    left_pose.position.x = center_x - (box_length / 2.0) * 0.707;
+    left_pose.position.y = center_y - (box_length / 2.0) * 0.707;
+    left_pose.position.z = center_z;
+    left_pose.orientation.x = ORIENTATION_X;
+    left_pose.orientation.y = ORIENTATION_Y;
+    left_pose.orientation.z = ORIENTATION_Z;
+    left_pose.orientation.w = ORIENTATION_W;
+    left_face.primitives.push_back(left_primitive);
+    left_face.primitive_poses.push_back(left_pose);
+    left_face.operation = moveit_msgs::CollisionObject::ADD;
+    collision_objects.push_back(left_face);
 
-    // // Apply all collision objects to the planning scene
-    // planning_scene_interface.applyCollisionObjects(collision_objects);
+    // Right face
+    moveit_msgs::CollisionObject right_face;
+    right_face.header.frame_id = group_gripper.getPlanningFrame();
+    right_face.id = "storage_box_right";
+    shape_msgs::SolidPrimitive right_primitive;
+    right_primitive.type = right_primitive.BOX;
+    right_primitive.dimensions = {0.01, box_width, box_height};
+    geometry_msgs::Pose right_pose;
+    right_pose.position.x = center_x + (box_length / 2.0) * 0.707;
+    right_pose.position.y = center_y + (box_length / 2.0) * 0.707;
+    right_pose.position.z = center_z;
+    right_pose.orientation.x = ORIENTATION_X;
+    right_pose.orientation.y = ORIENTATION_Y;
+    right_pose.orientation.z = ORIENTATION_Z;
+    right_pose.orientation.w = ORIENTATION_W;
+    right_face.primitives.push_back(right_primitive);
+    right_face.primitive_poses.push_back(right_pose);
+    right_face.operation = moveit_msgs::CollisionObject::ADD;
+    collision_objects.push_back(right_face);
+
+    // Apply all collision objects to the planning scene
+    planning_scene_interface.applyCollisionObjects(collision_objects);
 
     // std::vector<moveit_msgs::CollisionObject> collision_objects;
     // double wall_thickness = 0.01;
 
-    // std::vector<moveit_msgs::CollisionObject> positive_box;
+    // moveit_msgs::CollisionObject positive_box;
     // positive_box.header.frame_id = group_gripper.getPlanningFrame();
     // positive_box.id = "storage_box_outer";
 
     // shape_msgs::SolidPrimitive positive_primitive;
     // positive_primitive.type = positive_primitive.BOX;
-    // positive_primitive.dimensions = {box_lenght, box_width, box_height};
+    // positive_primitive.dimensions = {box_length, box_width, box_height};
 
 
     // geometry_msgs::Pose positive_pose;
@@ -348,7 +368,7 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
 
 
     // moveit_msgs::CollisionObject negative_box;
-    // negative_box.header.frame_id = group.gripper.getPlanningFrame();
+    // negative_box.header.frame_id = group_gripper.getPlanningFrame();
     // negative_box.id = "storage_box_inner";
 
     // shape_msgs::SolidPrimitive negative_primitive;
@@ -362,7 +382,7 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
     // geometry_msgs::Pose negative_pose;
     // negative_pose.position.x = center_x;
     // negative_pose.position.y = center_y;
-    // negative_pose.position.z = center_z + wall_thickness/ 2.0;
+    // negative_pose.position.z = center_z + wall_thickness + 0.02;
 
     // negative_pose.orientation.w = 1.0;
 
@@ -372,10 +392,6 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
 
     // planning_scene_interface.applyCollisionObject(positive_box);
     // planning_scene_interface.applyCollisionObject(negative_box);
-
-
-
-
  }
  
  void VADERPlanner::start()
@@ -561,7 +577,7 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
  
  // Uses Parametric Circle method to get the viable pregrasp pose and plan of the gripper.
  bool VADERPlanner::planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Request &req) {
-    _add_storage_box_collision();
+    // _add_storage_box_collision();
      //display pepper as collision obj
      _add_pepper_peduncle_collision(req.pepper);
      // Add collision wall to the scene
