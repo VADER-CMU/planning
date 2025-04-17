@@ -33,7 +33,7 @@
 
   <include file="$(find xarm7_moveit_config)/launch/moveit_rviz_common.launch">
     <arg name="jnt_stat_source" value="[/$(arg namespace)/joint_states]" />
-    <arg name="load_move_group" value="true" />
+    <arg name="load_move_group" value="false" />
     <arg name="pub_tf" value="true" />
     <arg name="model1300" value="$(arg model1300)"/>
     <arg name="add_realsense_d435i" value="$(arg add_realsense_d435i)"/>

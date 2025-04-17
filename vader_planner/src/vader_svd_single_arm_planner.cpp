@@ -98,6 +98,9 @@ private:
 
     bool _test_IK_for_gripper_pose(geometry_msgs::Pose &test_pose);
     bool _test_PC_gripper_approach(tf::Vector3 &axis, tf::Vector3 &centroid, double angle, double radius);
+
+    double _plan_cartesian(geometry_msgs::Pose &goal_pose);
+
     bool planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Request &req);
     bool planGripperGraspPose(vader_msgs::SingleArmPlanRequest::Request &req);
 
@@ -456,6 +459,17 @@ void VADERPlanner::show_trail(bool plan_result, bool is_planner)
     }
 }
 
+double VADERPlanner::_plan_cartesian(geometry_msgs::Pose &goal_pose){
+    std::vector<geometry_msgs::Pose> waypoints;
+    waypoints.push_back(goal_pose);
+    group_gripper.setMaxVelocityScalingFactor(maxV_scale_factor);
+    moveit_msgs::RobotTrajectory trajectory;
+    
+    double fraction = group_gripper.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+    plan_gripper.trajectory_ = trajectory;
+    return fraction;
+}
+
 bool VADERPlanner::planning_service_handler(vader_msgs::SingleArmPlanRequest::Request &req, vader_msgs::SingleArmPlanRequest::Response &res)
 {
 
@@ -513,22 +527,32 @@ bool VADERPlanner::execution_service_handler(vader_msgs::SingleArmExecutionReque
             current_pose.position.x += transformed_approach.x();
             current_pose.position.y += transformed_approach.y();
             current_pose.position.z += transformed_approach.z();
-            moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
-            const robot_state::JointModelGroup *joint_model_group2 = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
-            bool _found = state_copy.setFromIK(joint_model_group2, current_pose, 10, 0.1);
-            assert(_found);
+            // moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+            // const robot_state::JointModelGroup *joint_model_group2 = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+            // bool _found = state_copy.setFromIK(joint_model_group2, current_pose, 10, 0.1);
+            // assert(_found);
 
-            std::vector<double> joint_values;
+            // std::vector<double> joint_values;
 
-            state_copy.copyJointGroupPositions(joint_model_group2, joint_values);
+            // state_copy.copyJointGroupPositions(joint_model_group2, joint_values);
 
-            group_gripper.setJointValueTarget(joint_values);
+            // group_gripper.setJointValueTarget(joint_values);
 
-            exec_ok = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            // exec_ok = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
 
-            show_trail(exec_ok, true);
-            if (exec_ok) {
+            double fraction =_plan_cartesian(current_pose);
+            bool success = true;
+
+            if(fraction<0.5){
+                success = false;
+            }
+            fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
+
+            show_trail(success, true);
+            if (success) {
                 exec_ok = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            } else {
+                exec_ok = false;
             }
         }
     }
@@ -562,17 +586,27 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
              bin_location_pose.position.x, bin_location_pose.position.y, bin_location_pose.position.z,
              bin_location_pose.orientation.x, bin_location_pose.orientation.y, bin_location_pose.orientation.z, bin_location_pose.orientation.w);
 
-    moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
-    const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
-    bool _found = state_copy.setFromIK(joint_model_group, bin_location_pose, 10, 0.1);
-    assert(_found);
-    std::vector<double> joint_values;
-    state_copy.copyJointGroupPositions(joint_model_group, joint_values);
+    // moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+    // const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+    // bool _found = state_copy.setFromIK(joint_model_group, bin_location_pose, 10, 0.1);
+    // assert(_found);
+    // std::vector<double> joint_values;
+    // state_copy.copyJointGroupPositions(joint_model_group, joint_values);
 
-    group_gripper.setJointValueTarget(joint_values);
+    // group_gripper.setJointValueTarget(joint_values);
 
-    //  group_gripper.setPoseTarget(bin_location_pose);
-    bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    // //  group_gripper.setPoseTarget(bin_location_pose);
+    // bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+
+    double fraction =_plan_cartesian(bin_location_pose);
+    bool success = true;
+
+    if(fraction<0.5){
+        ROS_ERROR("Poopoopoo");
+        success = false;
+    }
+    
+    fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
     show_trail(success, true);
     if (success)
     {
@@ -582,8 +616,27 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
         {
             ROS_ERROR("Execution to storage location failed");
         }
-        res.result = exec_result;
-        return exec_result;
+        //approach
+        bin_location_pose.position.z -= req.reserve_dist;
+        double fraction =_plan_cartesian(bin_location_pose);
+        success = true;
+
+        if(fraction<0.5){
+            ROS_ERROR("Poopoopoopoo");
+            success = false;
+        }
+        if (success)
+        {
+            ROS_INFO("Plan to storage location succeeded. Executing...");
+            bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            if (!exec_result)
+            {
+                ROS_ERROR("Execution to storage location failed");
+            }
+            res.result = true;
+            return exec_result;
+        }
+        fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
     }
     else
     {
@@ -594,8 +647,8 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
 }
 
 bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res)
-{
-    std::vector<double> joint_values = {72,-53.9,-40.2,95.1,64.1,140.2,45.8};
+{   //{57.3,-78.9,4.7,55.2,35.3,78.7,57.7} to right side, lower
+    std::vector<double> joint_values = {100,-78.9,4.7,55.2,35.3,78.7,57.7};//{72,-53.9,-40.2,95.1,64.1,140.2,45.8};
     for (int i = 0; i < 7; i++)
     {
         joint_values[i] *= (M_PI / 180.0);
@@ -811,46 +864,66 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Req
     bool success;
     if (found_ik)
     {
-        end_effector_pose.position.z += 0.12;
-        moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
-        const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
-        bool _found = state_copy.setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
-        assert(_found);
+        end_effector_pose.position.z += 0.08;
+        // moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+        // const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+        // bool _found = state_copy.setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
+        // assert(_found);
 
-        std::vector<double> joint_values;
-        state_copy.copyJointGroupPositions(joint_model_group, joint_values);
-        ROS_INFO("Found valid IK solution");
+        // std::vector<double> joint_values;
+        // state_copy.copyJointGroupPositions(joint_model_group, joint_values);
+        // ROS_INFO("Found valid IK solution");
 
-        // Add 90-deg cam rotation
+        // // Add 90-deg cam rotation
         if (req.gripper_camera_rotation == req.GRIPPER_DO_ROTATE_CAMERA)
         {
-            int num_joints = joint_values.size();
-            gripper_pregrasp_cam_orig_value = joint_values[num_joints - 1];
-            if (num_joints > 0)
-            {
+        //     int num_joints = joint_values.size();
+        //     gripper_pregrasp_cam_orig_value = joint_values[num_joints - 1];
+        //     if (num_joints > 0)
+        //     {
 
-                // Rotate only the final joint by 90 degrees
-                joint_values[num_joints - 1] -= M_PI / 2.0;
+        //         // Rotate only the final joint by 90 degrees
+        //         joint_values[num_joints - 1] -= M_PI / 2.0;
 
-                // Normalize the joint angle to the range (-PI, PI) if needed
-                while (joint_values[num_joints - 1] > M_PI)
-                {
-                    joint_values[num_joints - 1] -= 2.0 * M_PI;
-                }
-                while (joint_values[num_joints - 1] < -M_PI)
-                {
-                    joint_values[num_joints - 1] += 2.0 * M_PI;
-                }
+        //         // Normalize the joint angle to the range (-PI, PI) if needed
+        //         while (joint_values[num_joints - 1] > M_PI)
+        //         {
+        //             joint_values[num_joints - 1] -= 2.0 * M_PI;
+        //         }
+        //         while (joint_values[num_joints - 1] < -M_PI)
+        //         {
+        //             joint_values[num_joints - 1] += 2.0 * M_PI;
+        //         }
 
-                ROS_INFO("Final joint before rotation: %f, after rotation: %f radians",
-                         joint_values[num_joints - 1] - M_PI / 2.0, joint_values[num_joints - 1]);
-            }
+        //         ROS_INFO("Final joint before rotation: %f, after rotation: %f radians",
+        //                  joint_values[num_joints - 1] - M_PI / 2.0, joint_values[num_joints - 1]);
+        //     }
+            tf::Quaternion curr_ori;
+            tf::quaternionMsgToTF(end_effector_pose.orientation, curr_ori);
+            tf::Quaternion rotate_90;
+            rotate_90.setRPY(0, 0, -M_PI/2);
+            tf::Quaternion new_ori = curr_ori * rotate_90;
+            new_ori.normalize();
+            end_effector_pose.orientation.x = new_ori.x();
+            end_effector_pose.orientation.y = new_ori.y();
+            end_effector_pose.orientation.z = new_ori.z();
+            end_effector_pose.orientation.w = new_ori.w();
         }
 
-        pregraspFinalGripperPose = end_effector_pose;
+        // pregraspFinalGripperPose = end_effector_pose;
 
-        group_gripper.setJointValueTarget(joint_values);
-        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        // group_gripper.setJointValueTarget(joint_values);
+        // success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        // show_trail(success, true);
+        double fraction =_plan_cartesian(end_effector_pose);
+        success = true;
+
+        if(fraction < 0.5){
+            ROS_ERROR("Poo");
+            success = false;
+        }
+        fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
+
         show_trail(success, true);
     }
     else
@@ -905,6 +978,7 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::SingleArmPlanRequest::Reques
     // Calculate the closest point on the parametric circle
     tf::Vector3 closest_point = pepper_centroid + radius * (cos(theta_min) * u + sin(theta_min) * v);
 
+    ROS_INFO("Dot with world Z: %f", std::abs(pepper_axis.dot(ref)));
     ROS_INFO("Closest point on circle: (%f, %f, %f)",
              closest_point.x(), closest_point.y(), closest_point.z());
 
@@ -976,20 +1050,30 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::SingleArmPlanRequest::Reques
     bool success;
     if (found_ik)
     {
-        moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
-        const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
-        bool _found = state_copy.setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
-        assert(_found);
+        // moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
+        // const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
+        // bool _found = state_copy.setFromIK(joint_model_group, end_effector_pose, 10, 0.1);
+        // assert(_found);
 
-        std::vector<double> joint_values;
-        state_copy.copyJointGroupPositions(joint_model_group, joint_values);
-        ROS_INFO("Found valid IK solution");
+        // std::vector<double> joint_values;
+        // state_copy.copyJointGroupPositions(joint_model_group, joint_values);
+        // ROS_INFO("Found valid IK solution");
 
+        // pregraspFinalGripperPose = end_effector_pose;
+
+        // group_gripper.setJointValueTarget(joint_values);
+        // success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        // show_trail(success, true);
+        double fraction =_plan_cartesian(end_effector_pose);
+        success = true;
+
+        if(fraction < 0.5){
+            ROS_ERROR("Poopoo");
+            success = false;
+        }
         pregraspFinalGripperPose = end_effector_pose;
+        fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
 
-        group_gripper.setJointValueTarget(joint_values);
-        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-        show_trail(success, true);
     }
     else
     {
