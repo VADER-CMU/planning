@@ -37,6 +37,9 @@
  #include <vader_msgs/SingleArmPlanRequest.h>
  #include <vader_msgs/SingleArmExecutionRequest.h>
  #include <vader_msgs/MoveToStorageRequest.h>
+ #include <vader_msgs/GoHomeRequest.h>
+
+ #include <cmath>
  
  #include <iostream>
  
@@ -81,6 +84,7 @@
  
      ros::ServiceServer planning_service, execution_service;
      ros::ServiceServer move_to_storage_service;
+     ros::ServiceServer go_home_service;
  
      ros::Publisher display_path;
  
@@ -100,6 +104,7 @@
      bool planning_service_handler(vader_msgs::SingleArmPlanRequest::Request &req, vader_msgs::SingleArmPlanRequest::Response &res);
      bool execution_service_handler(vader_msgs::SingleArmExecutionRequest::Request &req, vader_msgs::SingleArmExecutionRequest::Response &res);
      bool move_to_storage_service_handler(vader_msgs::MoveToStorageRequest::Request &req, vader_msgs::MoveToStorageRequest::Response &res);
+     bool go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res);
      void show_trail(bool plan_result, bool is_planner);
  };
  
@@ -117,7 +122,8 @@
      planning_service = node_handle.advertiseService("vader_plan", &VADERPlanner::planning_service_handler, this);
      execution_service = node_handle.advertiseService("vader_exec", &VADERPlanner::execution_service_handler, this);
      move_to_storage_service = node_handle.advertiseService("move_to_storage", &VADERPlanner::move_to_storage_service_handler, this);
- 
+     go_home_service = node_handle.advertiseService("go_home", &VADERPlanner::go_home_service_handler, this);
+
      // Initialize subscriber and publisher
      ROS_INFO("Planner initialized with planning group: %s",
               PLANNING_GROUP_GRIPPER.c_str());
@@ -228,95 +234,148 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
     double box_width = 0.35;
     double box_height = 0.3;
 
-    std::vector<moveit_msgs::CollisionObject> collision_objects;
+    // std::vector<moveit_msgs::CollisionObject> collision_objects;
 
-    // Bottom face
-    moveit_msgs::CollisionObject bottom_face;
-    bottom_face.header.frame_id = group_gripper.getPlanningFrame();
-    bottom_face.id = "storage_box_bottom";
-    shape_msgs::SolidPrimitive bottom_primitive;
-    bottom_primitive.type = bottom_primitive.BOX;
-    bottom_primitive.dimensions = {box_length, box_width, 0.01};
-    geometry_msgs::Pose bottom_pose;
-    bottom_pose.position.x = center_x;
-    bottom_pose.position.y = center_y;
-    bottom_pose.position.z = center_z - (box_height / 2.0);
-    bottom_pose.orientation.w = 1.0;
-    bottom_face.primitives.push_back(bottom_primitive);
-    bottom_face.primitive_poses.push_back(bottom_pose);
-    bottom_face.operation = moveit_msgs::CollisionObject::ADD;
-    collision_objects.push_back(bottom_face);
+    // // Bottom face
+    // moveit_msgs::CollisionObject bottom_face;
+    // bottom_face.header.frame_id = group_gripper.getPlanningFrame();
+    // bottom_face.id = "storage_box_bottom";
+    // shape_msgs::SolidPrimitive bottom_primitive;
+    // bottom_primitive.type = bottom_primitive.BOX;
+    // bottom_primitive.dimensions = {box_length, box_width, 0.01};
+    // geometry_msgs::Pose bottom_pose;
+    // bottom_pose.position.x = center_x;
+    // bottom_pose.position.y = center_y;
+    // bottom_pose.position.z = center_z - (box_height / 2.0);
+    // bottom_pose.orientation.w = 1.0;
+    // bottom_face.primitives.push_back(bottom_primitive);
+    // bottom_face.primitive_poses.push_back(bottom_pose);
+    // bottom_face.operation = moveit_msgs::CollisionObject::ADD;
+    // collision_objects.push_back(bottom_face);
 
-    // Front face
-    moveit_msgs::CollisionObject front_face;
-    front_face.header.frame_id = group_gripper.getPlanningFrame();
-    front_face.id = "storage_box_front";
-    shape_msgs::SolidPrimitive front_primitive;
-    front_primitive.type = front_primitive.BOX;
-    front_primitive.dimensions = {box_length, 0.01, box_height};
-    geometry_msgs::Pose front_pose;
-    front_pose.position.x = center_x;
-    front_pose.position.y = center_y - (box_width / 2.0);
-    front_pose.position.z = center_z;
-    front_pose.orientation.w = 1.0;
-    front_face.primitives.push_back(front_primitive);
-    front_face.primitive_poses.push_back(front_pose);
-    front_face.operation = moveit_msgs::CollisionObject::ADD;
-    collision_objects.push_back(front_face);
+    // // Front face
+    // moveit_msgs::CollisionObject front_face;
+    // front_face.header.frame_id = group_gripper.getPlanningFrame();
+    // front_face.id = "storage_box_front";
+    // shape_msgs::SolidPrimitive front_primitive;
+    // front_primitive.type = front_primitive.BOX;
+    // front_primitive.dimensions = {box_length, 0.01, box_height};
+    // geometry_msgs::Pose front_pose;
+    // front_pose.position.x = center_x;
+    // front_pose.position.y = center_y - (box_width / 2.0);
+    // front_pose.position.z = center_z;
+    // front_pose.orientation.w = 1.0;
+    // front_face.primitives.push_back(front_primitive);
+    // front_face.primitive_poses.push_back(front_pose);
+    // front_face.operation = moveit_msgs::CollisionObject::ADD;
+    // collision_objects.push_back(front_face);
 
-    // Back face
-    moveit_msgs::CollisionObject back_face;
-    back_face.header.frame_id = group_gripper.getPlanningFrame();
-    back_face.id = "storage_box_back";
-    shape_msgs::SolidPrimitive back_primitive;
-    back_primitive.type = back_primitive.BOX;
-    back_primitive.dimensions = {box_length, 0.01, box_height};
-    geometry_msgs::Pose back_pose;
-    back_pose.position.x = center_x;
-    back_pose.position.y = center_y + (box_width / 2.0);
-    back_pose.position.z = center_z;
-    back_pose.orientation.w = 1.0;
-    back_face.primitives.push_back(back_primitive);
-    back_face.primitive_poses.push_back(back_pose);
-    back_face.operation = moveit_msgs::CollisionObject::ADD;
-    collision_objects.push_back(back_face);
+    // // Back face
+    // moveit_msgs::CollisionObject back_face;
+    // back_face.header.frame_id = group_gripper.getPlanningFrame();
+    // back_face.id = "storage_box_back";
+    // shape_msgs::SolidPrimitive back_primitive;
+    // back_primitive.type = back_primitive.BOX;
+    // back_primitive.dimensions = {box_length, 0.01, box_height};
+    // geometry_msgs::Pose back_pose;
+    // back_pose.position.x = center_x;
+    // back_pose.position.y = center_y + (box_width / 2.0);
+    // back_pose.position.z = center_z;
+    // back_pose.orientation.w = 1.0;
+    // back_face.primitives.push_back(back_primitive);
+    // back_face.primitive_poses.push_back(back_pose);
+    // back_face.operation = moveit_msgs::CollisionObject::ADD;
+    // collision_objects.push_back(back_face);
 
-    // Left face
-    moveit_msgs::CollisionObject left_face;
-    left_face.header.frame_id = group_gripper.getPlanningFrame();
-    left_face.id = "storage_box_left";
-    shape_msgs::SolidPrimitive left_primitive;
-    left_primitive.type = left_primitive.BOX;
-    left_primitive.dimensions = {0.01, box_width, box_height};
-    geometry_msgs::Pose left_pose;
-    left_pose.position.x = center_x - (box_length / 2.0);
-    left_pose.position.y = center_y;
-    left_pose.position.z = center_z;
-    left_pose.orientation.w = 1.0;
-    left_face.primitives.push_back(left_primitive);
-    left_face.primitive_poses.push_back(left_pose);
-    left_face.operation = moveit_msgs::CollisionObject::ADD;
-    collision_objects.push_back(left_face);
+    // // Left face
+    // moveit_msgs::CollisionObject left_face;
+    // left_face.header.frame_id = group_gripper.getPlanningFrame();
+    // left_face.id = "storage_box_left";
+    // shape_msgs::SolidPrimitive left_primitive;
+    // left_primitive.type = left_primitive.BOX;
+    // left_primitive.dimensions = {0.01, box_width, box_height};
+    // geometry_msgs::Pose left_pose;
+    // left_pose.position.x = center_x - (box_length / 2.0);
+    // left_pose.position.y = center_y;
+    // left_pose.position.z = center_z;
+    // left_pose.orientation.w = 1.0;
+    // left_face.primitives.push_back(left_primitive);
+    // left_face.primitive_poses.push_back(left_pose);
+    // left_face.operation = moveit_msgs::CollisionObject::ADD;
+    // collision_objects.push_back(left_face);
 
-    // Right face
-    moveit_msgs::CollisionObject right_face;
-    right_face.header.frame_id = group_gripper.getPlanningFrame();
-    right_face.id = "storage_box_right";
-    shape_msgs::SolidPrimitive right_primitive;
-    right_primitive.type = right_primitive.BOX;
-    right_primitive.dimensions = {0.01, box_width, box_height};
-    geometry_msgs::Pose right_pose;
-    right_pose.position.x = center_x + (box_length / 2.0);
-    right_pose.position.y = center_y;
-    right_pose.position.z = center_z;
-    right_pose.orientation.w = 1.0;
-    right_face.primitives.push_back(right_primitive);
-    right_face.primitive_poses.push_back(right_pose);
-    right_face.operation = moveit_msgs::CollisionObject::ADD;
-    collision_objects.push_back(right_face);
+    // // Right face
+    // moveit_msgs::CollisionObject right_face;
+    // right_face.header.frame_id = group_gripper.getPlanningFrame();
+    // right_face.id = "storage_box_right";
+    // shape_msgs::SolidPrimitive right_primitive;
+    // right_primitive.type = right_primitive.BOX;
+    // right_primitive.dimensions = {0.01, box_width, box_height};
+    // geometry_msgs::Pose right_pose;
+    // right_pose.position.x = center_x + (box_length / 2.0);
+    // right_pose.position.y = center_y;
+    // right_pose.position.z = center_z;
+    // right_pose.orientation.w = 1.0;
+    // right_face.primitives.push_back(right_primitive);
+    // right_face.primitive_poses.push_back(right_pose);
+    // right_face.operation = moveit_msgs::CollisionObject::ADD;
+    // collision_objects.push_back(right_face);
 
-    // Apply all collision objects to the planning scene
-    planning_scene_interface.applyCollisionObjects(collision_objects);
+    // // Apply all collision objects to the planning scene
+    // planning_scene_interface.applyCollisionObjects(collision_objects);
+
+    // std::vector<moveit_msgs::CollisionObject> collision_objects;
+    // double wall_thickness = 0.01;
+
+    // std::vector<moveit_msgs::CollisionObject> positive_box;
+    // positive_box.header.frame_id = group_gripper.getPlanningFrame();
+    // positive_box.id = "storage_box_outer";
+
+    // shape_msgs::SolidPrimitive positive_primitive;
+    // positive_primitive.type = positive_primitive.BOX;
+    // positive_primitive.dimensions = {box_lenght, box_width, box_height};
+
+
+    // geometry_msgs::Pose positive_pose;
+    // positive_pose.position.x = center_x;
+    // positive_pose.position.y = center_y;
+    // positive_pose.position.z = center_z;
+    // positive_pose.orientation.w = 1.0;
+
+    // positive_box.primitives.push_back(positive_primitive);
+    // positive_box.primitive_poses.push_back(positive_pose);
+    // positive_box.operation = moveit_msgs::CollisionObject::ADD;
+
+
+    // moveit_msgs::CollisionObject negative_box;
+    // negative_box.header.frame_id = group.gripper.getPlanningFrame();
+    // negative_box.id = "storage_box_inner";
+
+    // shape_msgs::SolidPrimitive negative_primitive;
+    // negative_primitive.type = negative_primitive.BOX;
+    // negative_primitive.dimensions = {
+    //     box_length - 2*wall_thickness, 
+    //     box_width - 2*wall_thickness,
+    //     box_height - wall_thickness
+    // };
+
+    // geometry_msgs::Pose negative_pose;
+    // negative_pose.position.x = center_x;
+    // negative_pose.position.y = center_y;
+    // negative_pose.position.z = center_z + wall_thickness/ 2.0;
+
+    // negative_pose.orientation.w = 1.0;
+
+    // negative_box.primitives.push_back(negative_primitive);
+    // negative_box.primitive_poses.push_back(negative_pose);
+    // negative_box.operation = moveit_msgs::CollisionObject::REMOVE;
+
+    // planning_scene_interface.applyCollisionObject(positive_box);
+    // planning_scene_interface.applyCollisionObject(negative_box);
+
+
+
+
  }
  
  void VADERPlanner::start()
@@ -429,6 +488,44 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
          return false;
      }
  }
+
+ bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res){
+    std::vector<double> joint_values = {-47, 82.7, 159.5, 59.2, 30.5, 73.8, 59.8}; 
+    //-47, 82.7, 159.5, 59.2, 30.5, 73.8, 59.8
+    // std::vector<double> joint_values = {-2.081, -0.285, 2.865, 1.197, 0.038, 0.950, -1.995};
+    //experiment with 360 + 
+    for(int i = 0; i < 7; i++){
+
+
+        
+        joint_values[i] *= (M_PI / 180.0);
+        joint_values[i] = fmod((joint_values[i] + M_PI), (2*M_PI)) - M_PI;
+        ROS_INFO("%f", joint_values[i]);
+    
+    }
+    group_gripper.setJointValueTarget(joint_values);
+    bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    show_trail(success, true);
+    if (success)
+    {
+        ROS_INFO("Plan to storage location succeeded. Executing...");
+        bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        if (!exec_result) {
+            ROS_ERROR("Execution to storage location failed");
+        }
+        res.result = exec_result;
+        return exec_result;
+    }
+    else
+    {
+        ROS_ERROR("Plan to storage location failed.");
+        res.result = false;
+        return false;
+    }
+
+    
+ }
+
  
  static tf::Quaternion _get_norm_quat_from_axes(tf::Vector3 &ax_x, tf::Vector3 &ax_y, tf::Vector3 &ax_z) {
      // Create rotation matrix for end effector orientation
