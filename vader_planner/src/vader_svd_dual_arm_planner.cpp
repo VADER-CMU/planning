@@ -33,7 +33,7 @@
 #include <vader_msgs/Pepper.h>
 #include <vader_msgs/Peduncle.h>
 #include <vader_msgs/Fruit.h>
-\
+
 #include <vader_msgs/BimanualPlanRequest.h>
 #include <vader_msgs/BimanualExecRequest.h>
 #include <vader_msgs/MoveToStorageRequest.h>
