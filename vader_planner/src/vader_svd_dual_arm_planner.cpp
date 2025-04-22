@@ -37,6 +37,7 @@
 #include <vader_msgs/BimanualPlanRequest.h>
 #include <vader_msgs/BimanualExecRequest.h>
 #include <vader_msgs/MoveToStorageRequest.h>
+#include <vader_msgs/GoHomeRequest.h>
 
 #include <iostream>
 
@@ -84,6 +85,7 @@ private:
 
     ros::ServiceServer planning_service, execution_service;
     ros::ServiceServer move_to_storage_service;
+    ros::ServiceServer go_home_service;
 
     ros::Publisher display_path;
 
@@ -105,6 +107,8 @@ private:
     bool planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res);
     bool execution_service_handler(vader_msgs::BimanualExecRequest::Request &req, vader_msgs::BimanualExecRequest::Response &res);
     bool move_to_storage_service_handler(vader_msgs::MoveToStorageRequest::Request &req, vader_msgs::MoveToStorageRequest::Response &res);
+    bool go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res);
+
     void show_trail(bool plan_result, bool is_planner);
 };
 
@@ -119,6 +123,7 @@ void VADERPlanner::init()
     planning_service = node_handle.advertiseService("vader_plan", &VADERPlanner::planning_service_handler, this);
     execution_service = node_handle.advertiseService("vader_exec", &VADERPlanner::execution_service_handler, this);
     move_to_storage_service = node_handle.advertiseService("move_to_storage", &VADERPlanner::move_to_storage_service_handler, this);
+    go_home_service = node_handle.advertiseService("go_home", &VADERPlanner::go_home_service_handler, this);
 
     // Initialize subscriber and publisher
     ROS_INFO("Planner initialized with left planning group: %s and right planning group: %s",
@@ -476,6 +481,13 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
     }
     res.result = success;
     return success;
+}
+
+bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res)
+{    
+    //TODO stub
+    res.result = false;
+    return false;         
 }
 
 static tf::Quaternion _get_norm_quat_from_axes(tf::Vector3 &ax_x, tf::Vector3 &ax_y, tf::Vector3 &ax_z)
