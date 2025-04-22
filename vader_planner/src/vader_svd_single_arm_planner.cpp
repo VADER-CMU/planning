@@ -546,7 +546,6 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
             res.result = true;
             return exec_result;
         }
-        fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
     }
     else
     {

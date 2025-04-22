@@ -355,10 +355,20 @@ bool VADERPlanner::execution_service_handler(vader_msgs::BimanualExecRequest::Re
         bool cartesian_plan_success = _plan_cartesian_cutter(current_pose, 0.5);
         if (cartesian_plan_success)
         {
-            success = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            bool success = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            if (!success)
+            {
+                ROS_ERROR("Execution to storage location failed");
+            }
+            res.result = success;
         }
 
         show_trail(cartesian_plan_success, false);
+        if (!cartesian_plan_success)
+        {
+            ROS_ERROR("Plan to storage location failed.");
+            res.result = false;
+        }
     }
     else
     {
