@@ -10,6 +10,21 @@ controller_list:
       - L_joint5
       - L_joint6
       - L_joint7
+    goal_tolerance:
+      L_joint1: 
+        position: 0.005
+      L_joint2: 
+        position: 0.005
+      L_joint3: 
+        position: 0.005
+      L_joint4: 
+        position: 0.005
+      L_joint5: 
+        position: 0.005
+      L_joint6: 
+        position: 0.005
+      L_joint7: 
+        position: 0.005
   
   - name: "R_xarm7_controller"
     action_ns: follow_joint_trajectory
@@ -22,3 +37,18 @@ controller_list:
       - R_joint5
       - R_joint6
       - R_joint7
+    goal_tolerance:
+      R_joint1: 
+        position: 0.005
+      R_joint2:  
+        position: 0.005
+      R_joint3: 
+        position: 0.005
+      R_joint4:  
+        position: 0.005
+      R_joint5:  
+        position: 0.005
+      R_joint6: 
+        position: 0.005
+      R_joint7: 
+        position: 0.005

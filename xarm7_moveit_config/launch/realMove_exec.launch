@@ -13,6 +13,7 @@
   <arg name="baud_checkset" default="true" />
 	<arg name="default_gripper_baud" default="2000000" />
   <arg name="jnt_stat_pub_rate" default="10" />
+  <arg name="add_vader_gripper" default="false" />
 
   <arg name="add_gripper" default="false" />
   <arg name="add_vacuum_gripper" default="false" />
@@ -82,6 +83,7 @@
     <arg name="attach_xyz" value="$(arg attach_xyz)"/>
     <arg name="attach_rpy" value="$(arg attach_rpy)"/>
     <arg name="robot_sn" value="$(arg robot_sn)"/>
+    <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" />
 
     <arg name="add_gripper" value="$(arg add_gripper)"/>
     <arg name="add_vacuum_gripper" value="$(arg add_vacuum_gripper)"/>

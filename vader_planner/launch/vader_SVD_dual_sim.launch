@@ -75,6 +75,7 @@
     <arg name="add_gripper" value="$(arg add_gripper)"/>
     <arg name="add_vacuum_gripper" value="$(arg add_vacuum_gripper)"/>
     <arg name="add_other_geometry" value="$(arg add_other_geometry)"/>
+    <arg name="add_vader_eef" value="$(arg add_vader_eef)" />
     <arg name="geometry_type" value="$(arg geometry_type)"/>
     <arg name="geometry_mass" value="$(arg geometry_mass)"/>
     <arg name="geometry_height" value="$(arg geometry_height)"/>
@@ -136,6 +137,6 @@
   <param name="robot_name" type="str" value = "$(eval arg('robot_type') if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))"/>
   <!-- bring up the simple planner (based on move_group) that provide plan service and execution server -->
   <!-- left arm: L_xarm7, right arm: R_xarm7 -->
-  <node name="vader_svd_dual_arm_planner" pkg="vader_planner" type="vader_svd_dual_arm_planner" />
+  <node name="vader_svd_dual_arm_planner" pkg="vader_planner" type="vader_svd_dual_arm_planner" output="screen"/>
 
 </launch>
