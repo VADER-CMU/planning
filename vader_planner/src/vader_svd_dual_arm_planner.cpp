@@ -487,21 +487,22 @@ bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &r
 {    
     geometry_msgs::Pose gripper_home_pose;
     gripper_home_pose.position.x = 0.4;
-    gripper_home_pose.position.y = 0.0;
+    gripper_home_pose.position.y = 0.1;
     gripper_home_pose.position.z = 0.6;
-    gripper_home_pose.orientation.x = -0.5;
-    gripper_home_pose.orientation.y = 0.5;
-    gripper_home_pose.orientation.z = -0.5;
-    gripper_home_pose.orientation.w = 0.5;
+    gripper_home_pose.orientation.x = -0.5609855;
+    gripper_home_pose.orientation.y = 0.4304593;
+    gripper_home_pose.orientation.z = -0.4304593;
+    gripper_home_pose.orientation.w = 0.5609855;
 
     geometry_msgs::Pose cutter_home_pose;
     cutter_home_pose.position.x = 0.4;
-    cutter_home_pose.position.y = 0.5;
+    cutter_home_pose.position.y = 0.6;
     cutter_home_pose.position.z = 0.6;
-    cutter_home_pose.orientation.x = -0.5;
-    cutter_home_pose.orientation.y = 0.5;
-    cutter_home_pose.orientation.z = -0.5;
-    cutter_home_pose.orientation.w = 0.5;
+    cutter_home_pose.orientation.x = -0.4304593;
+    cutter_home_pose.orientation.y = 0.5609855;
+    cutter_home_pose.orientation.z = -0.5609855;
+    cutter_home_pose.orientation.w = 0.4304593;
+    // -0.5609855, 0.4304593, -0.4304593, 0.5609855
     bool success;
     if(req.is_gripper){
         success = _plan_cartesian_gripper(gripper_home_pose, 0.5);
