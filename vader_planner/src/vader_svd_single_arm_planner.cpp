@@ -826,6 +826,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Req
         // show_trail(success, true);
         bool cartesian_plan_success = _plan_cartesian_gripper(end_effector_pose, 0.5);
         show_trail(cartesian_plan_success, true);
+        success = cartesian_plan_success;
     }
     else
     {
