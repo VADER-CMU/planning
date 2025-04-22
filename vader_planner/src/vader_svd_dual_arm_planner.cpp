@@ -485,9 +485,48 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
 
 bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res)
 {    
+    geometry_msgs::Pose gripper_home_pose;
+    gripper_home_pose.position.x = 0.4;
+    gripper_home_pose.position.y = 0.0;
+    gripper_home_pose.position.z = 0.6;
+    gripper_home_pose.orientation.x = -0.5;
+    gripper_home_pose.orientation.y = 0.5;
+    gripper_home_pose.orientation.z = -0.5;
+    gripper_home_pose.orientation.w = 0.5;
+
+    geometry_msgs::Pose cutter_home_pose;
+    cutter_home_pose.position.x = 0.4;
+    cutter_home_pose.position.y = 0.5;
+    cutter_home_pose.position.z = 0.6;
+    cutter_home_pose.orientation.x = -0.5;
+    cutter_home_pose.orientation.y = 0.5;
+    cutter_home_pose.orientation.z = -0.5;
+    cutter_home_pose.orientation.w = 0.5;
+    bool success;
+    if(req.is_gripper){
+        success = _plan_cartesian_gripper(gripper_home_pose, 0.5);
+        show_trail(success, true);
+        if(success){
+            success = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            
+        }
+        if(!success){
+            ROS_ERROR("Gripper home execution failed");
+        }
+    }else{
+        success = _plan_cartesian_cutter(cutter_home_pose, 0.5);
+        show_trail(success, false);
+        if(success){
+            success = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            
+        }
+        if(!success){
+            ROS_ERROR("Cutter home execution failed");
+        }
+    }
     //TODO stub
-    res.result = false;
-    return false;         
+    res.result = success;
+    return success;         
 }
 
 static tf::Quaternion _get_norm_quat_from_axes(tf::Vector3 &ax_x, tf::Vector3 &ax_y, tf::Vector3 &ax_z)
@@ -924,6 +963,7 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
             current_pose.position.y += transformed_approach.y();
             current_pose.position.z += transformed_approach.z();
             finalCutterPose = current_pose;
+            ROS_INFO("Cutter orientation: (%f, %f, %f, %f)", current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z, current_pose.orientation.w);
             success = _plan_cartesian_cutter(current_pose, 0.5);
             show_trail(success, false);
         }
