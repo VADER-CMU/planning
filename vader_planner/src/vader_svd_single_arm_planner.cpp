@@ -516,7 +516,7 @@ bool VADERPlanner::execution_service_handler(vader_msgs::SingleArmExecutionReque
             ROS_INFO("Successfully moved to grasp position");
             geometry_msgs::Pose current_pose = pregraspFinalGripperPose;
 
-            tf::Vector3 approach(0.0, 0.0, 0.17);
+            tf::Vector3 approach(0.0, 0.0, 0.2);
 
             tf::Quaternion curr_quat;
             tf::quaternionMsgToTF(current_pose.orientation, curr_quat);
