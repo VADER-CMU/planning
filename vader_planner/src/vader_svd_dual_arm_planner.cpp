@@ -539,7 +539,9 @@ bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &r
     // -0.5609855, 0.4304593, -0.4304593, 0.5609855
     bool success;
     if(req.is_gripper){
-        success = _plan_cartesian_gripper(gripper_home_pose, 0.5);
+        // success = _plan_cartesian_gripper(gripper_home_pose, 0.5);
+        group_gripper.setPoseTarget(gripper_home_pose);
+        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
         show_trail(success, true);
         if(success){
             success = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
@@ -760,10 +762,14 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
             end_effector_pose.orientation.z = new_ori.z();
             end_effector_pose.orientation.w = new_ori.w();
         }
-        bool cartesian_plan_success = _plan_cartesian_gripper(end_effector_pose, 0.5);
+        // bool cartesian_plan_success = _plan_cartesian_gripper(end_effector_pose, 0.5);
 
-        show_trail(cartesian_plan_success, true);
-        success = cartesian_plan_success;
+        // show_trail(cartesian_plan_success, true);
+        // success = cartesian_plan_success;
+        group_gripper.setPoseTarget(end_effector_pose);
+        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        show_trail(success, true);
+
     }
     else
     {
