@@ -240,13 +240,13 @@ void VADERPlanner::_clear_pepper_collision()
 
 void VADERPlanner::_add_storage_box_collision()
 {
-    double center_x = 0.35;
-    double center_y = 0.35;
+    double center_x = 0.4;
+    double center_y = 0.4;
     double center_z = 0.2;
 
     double box_length = 0.35;
     double box_width = 0.24;
-    double box_height = 0.3;
+    double box_height = 0.25;
 
     double ORIENTATION_X = 0;
     double ORIENTATION_Y = 0;
@@ -446,7 +446,7 @@ bool VADERPlanner::execution_service_handler(vader_msgs::SingleArmExecutionReque
             ROS_INFO("Successfully moved to grasp position");
             geometry_msgs::Pose current_pose = pregraspFinalGripperPose;
 
-            tf::Vector3 approach(0.0, 0.0, 0.17);
+            tf::Vector3 approach(0.0, 0.0, 0.2);
 
             tf::Quaternion curr_quat;
             tf::quaternionMsgToTF(current_pose.orientation, curr_quat);
@@ -476,6 +476,12 @@ bool VADERPlanner::execution_service_handler(vader_msgs::SingleArmExecutionReque
             if (cartesian_plan_success)
             {
                 exec_ok = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                geometry_msgs::PoseStamped current_pose_stamped = group_gripper.getCurrentPose();
+                geometry_msgs::Pose current_pose = current_pose_stamped.pose;
+                ROS_INFO("Current Gripper Position: x=%f, y=%f, z=%f", current_pose.position.x, current_pose.position.y, current_pose.position.z);
+                ROS_INFO("Current Gripper Orientation: x=%f, y=%f, z=%f, w=%f", current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z, current_pose.orientation.w);
+            } else {
+                exec_ok = false;
             }
         }
     }
@@ -495,34 +501,17 @@ bool VADERPlanner::execution_service_handler(vader_msgs::SingleArmExecutionReque
 bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequest::Request &req, vader_msgs::MoveToStorageRequest::Response &res)
 {
     // Extract bin location from the request and store it in a pose message
-    geometry_msgs::Pose bin_location_pose;
-    bin_location_pose.position.x = req.binLocation.position.x;
-    bin_location_pose.position.y = req.binLocation.position.y;
-    bin_location_pose.position.z = req.binLocation.position.z + req.reserve_dist;
-
-    // Set the orientation to point in the negative z direction
-    bin_location_pose.orientation.x = req.binLocation.orientation.x;
-    bin_location_pose.orientation.y = req.binLocation.orientation.y;
-    bin_location_pose.orientation.z = req.binLocation.orientation.z;
-    bin_location_pose.orientation.w = req.binLocation.orientation.w;
-
-    // moveit::core::RobotState state_copy = *group_gripper.getCurrentState();
-    // const robot_state::JointModelGroup *joint_model_group = state_copy.getJointModelGroup(PLANNING_GROUP_GRIPPER);
-    // bool _found = state_copy.setFromIK(joint_model_group, bin_location_pose, 10, 0.1);
-    // assert(_found);
-    // std::vector<double> joint_values;
-    // state_copy.copyJointGroupPositions(joint_model_group, joint_values);
-
-    // group_gripper.setJointValueTarget(joint_values);
-
-    // //  group_gripper.setPoseTarget(bin_location_pose);
-    // bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-
-    bool cartesian_plan_success = _plan_cartesian_gripper(bin_location_pose, 0.5);
-
-    show_trail(cartesian_plan_success, true);
-    bool success = cartesian_plan_success;
-
+    // Use a preset joint configuration for the storage bin
+    std::vector<double> joint_values = {-84, -36.1, 89, 119.8, 40.5, 114.9, -114.1}; // Example joint configuration
+    for (int i = 0; i < 7; i++)
+    {
+        joint_values[i] *= (M_PI / 180.0);
+        joint_values[i] = fmod((joint_values[i] + M_PI), (2 * M_PI)) - M_PI;
+        ROS_INFO("%f", joint_values[i]);
+    }
+    group_gripper.setJointValueTarget(joint_values);
+    bool success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    show_trail(success, true);
     if (success)
     {
         ROS_INFO("Plan to storage location succeeded. Executing...");
@@ -530,22 +519,33 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
         if (!exec_result)
         {
             ROS_ERROR("Execution to storage location failed");
+            res.result = false;
+            return false;
         }
-        // approach
-        bin_location_pose.position.z -= req.reserve_dist;
-        cartesian_plan_success = _plan_cartesian_gripper(bin_location_pose, 0.5);
-
-        if (cartesian_plan_success)
+        
+        geometry_msgs::PoseStamped current_pose_stamped = group_gripper.getCurrentPose();
+        geometry_msgs::Pose current_pose = current_pose_stamped.pose;
+        double downward_dist = 0.25;
+        current_pose.position.z -= downward_dist;
+        double fraction = _plan_cartesian(current_pose);
+        if (fraction < 0.5)
         {
-            ROS_INFO("Plan to storage location succeeded. Executing...");
-            bool exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!exec_result)
-            {
-                ROS_ERROR("Execution to storage location failed");
-            }
-            res.result = true;
-            return exec_result;
+            ROS_ERROR("Cartesian path planning failed. Coverage: %lf", fraction);
+            res.result = false;
+            return false;
         }
+
+        ROS_INFO("Executing downward Cartesian path...");
+        exec_result = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        if (!exec_result)
+        {
+            ROS_ERROR("Execution of downward Cartesian path failed");
+            res.result = false;
+            return false;
+        }
+
+        res.result = true;
+        return true;
     }
     else
     {
@@ -556,8 +556,8 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
 }
 
 bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res)
-{                                                                                 //{57.3,-78.9,4.7,55.2,35.3,78.7,57.7} to right side, lower
-    std::vector<double> joint_values = {100, -78.9, 4.7, 55.2, 35.3, 78.7, 57.7}; //{72,-53.9,-40.2,95.1,64.1,140.2,45.8};
+{   //{57.3,-78.9,4.7,55.2,35.3,78.7,57.7} to right side, lower
+    std::vector<double> joint_values = {103.8,-76.2,-1.5,77.8,28.6,84.6,64.7};//{72,-53.9,-40.2,95.1,64.1,140.2,45.8};
     for (int i = 0; i < 7; i++)
     {
         joint_values[i] *= (M_PI / 180.0);
