@@ -527,10 +527,10 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
         geometry_msgs::Pose current_pose = current_pose_stamped.pose;
         double downward_dist = 0.25;
         current_pose.position.z -= downward_dist;
-        double fraction = _plan_cartesian(current_pose);
-        if (fraction < 0.5)
+        bool success = _plan_cartesian_gripper(current_pose, 0.5);
+        if (!success)
         {
-            ROS_ERROR("Cartesian path planning failed. Coverage: %lf", fraction);
+            ROS_ERROR("Cartesian path planning failed");
             res.result = false;
             return false;
         }
