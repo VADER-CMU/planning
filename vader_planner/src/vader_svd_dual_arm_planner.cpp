@@ -37,6 +37,8 @@
 #include <vader_msgs/BimanualPlanRequest.h>
 #include <vader_msgs/BimanualExecRequest.h>
 #include <vader_msgs/MoveToStorageRequest.h>
+#include <vader_msgs/GoHomeRequest.h>
+#include <vader_msgs/SimulationPepperSequence.h>
 
 #include <iostream>
 
@@ -84,10 +86,15 @@ private:
 
     ros::ServiceServer planning_service, execution_service;
     ros::ServiceServer move_to_storage_service;
+    ros::ServiceServer go_home_service;
 
     ros::Publisher display_path;
 
+    ros::Subscriber remaining_peppers_sub;
+    std::vector<std::string> pepper_collision_ids;
+
     void init();
+    void _update_other_pepper_collisions_callback(vader_msgs::SimulationPepperSequence::ConstPtr msg);
     void _add_ground_plane_collision();
     void _add_pepper_peduncle_collision(vader_msgs::Pepper &pepper);
     void _add_collision_wall(vader_msgs::BimanualPlanRequest::Request &req);
@@ -105,6 +112,8 @@ private:
     bool planning_service_handler(vader_msgs::BimanualPlanRequest::Request &req, vader_msgs::BimanualPlanRequest::Response &res);
     bool execution_service_handler(vader_msgs::BimanualExecRequest::Request &req, vader_msgs::BimanualExecRequest::Response &res);
     bool move_to_storage_service_handler(vader_msgs::MoveToStorageRequest::Request &req, vader_msgs::MoveToStorageRequest::Response &res);
+    bool go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res);
+
     void show_trail(bool plan_result, bool is_planner);
 };
 
@@ -119,10 +128,40 @@ void VADERPlanner::init()
     planning_service = node_handle.advertiseService("vader_plan", &VADERPlanner::planning_service_handler, this);
     execution_service = node_handle.advertiseService("vader_exec", &VADERPlanner::execution_service_handler, this);
     move_to_storage_service = node_handle.advertiseService("move_to_storage", &VADERPlanner::move_to_storage_service_handler, this);
+    go_home_service = node_handle.advertiseService("go_home", &VADERPlanner::go_home_service_handler, this);
+
+    remaining_peppers_sub = node_handle.subscribe("/fruit_coarse_pose_remaining", 10, &VADERPlanner::_update_other_pepper_collisions_callback, this);
 
     // Initialize subscriber and publisher
     ROS_INFO("Planner initialized with left planning group: %s and right planning group: %s",
              PLANNING_GROUP_GRIPPER.c_str(), PLANNING_GROUP_CUTTER.c_str());
+}
+
+void VADERPlanner::_update_other_pepper_collisions_callback(vader_msgs::SimulationPepperSequence::ConstPtr msg)
+{
+    // remove all current pepper collision objects
+    planning_scene_interface.removeCollisionObjects(pepper_collision_ids);
+    pepper_collision_ids.clear();
+    // add new pepper collision objects
+    for (const auto &pepper : msg->pepper_poses) //each is a Pose object
+    {
+        moveit_msgs::CollisionObject pepper_object;
+        pepper_object.header.frame_id = group_gripper.getPlanningFrame();
+        pepper_object.id = "pepper_" + std::to_string(pepper_collision_ids.size());
+
+        shape_msgs::SolidPrimitive primitive;
+        primitive.type = primitive.CYLINDER;
+        primitive.dimensions.resize(2);
+        primitive.dimensions[primitive.CYLINDER_HEIGHT] = 0.15; // height
+        primitive.dimensions[primitive.CYLINDER_RADIUS] = 0.07; // radius
+
+        pepper_object.primitives.push_back(primitive);
+        pepper_object.primitive_poses.push_back(pepper);
+        pepper_object.operation = moveit_msgs::CollisionObject::ADD;
+
+        planning_scene_interface.applyCollisionObject(pepper_object);
+        pepper_collision_ids.push_back(pepper_object.id);
+    }
 }
 
 void VADERPlanner::_add_ground_plane_collision()
@@ -478,6 +517,55 @@ bool VADERPlanner::move_to_storage_service_handler(vader_msgs::MoveToStorageRequ
     return success;
 }
 
+bool VADERPlanner::go_home_service_handler(vader_msgs::GoHomeRequest::Request &req, vader_msgs::GoHomeRequest::Response &res)
+{    
+    geometry_msgs::Pose gripper_home_pose;
+    gripper_home_pose.position.x = 0.4;
+    gripper_home_pose.position.y = 0.1;
+    gripper_home_pose.position.z = 0.6;
+    gripper_home_pose.orientation.x = -0.5609855; // 15 deg inward 
+    gripper_home_pose.orientation.y = 0.4304593;
+    gripper_home_pose.orientation.z = -0.4304593;
+    gripper_home_pose.orientation.w = 0.5609855;
+
+    geometry_msgs::Pose cutter_home_pose;
+    cutter_home_pose.position.x = 0.4;
+    cutter_home_pose.position.y = 0.6;
+    cutter_home_pose.position.z = 0.6;
+    cutter_home_pose.orientation.x = -0.4304593; //15 deg inward
+    cutter_home_pose.orientation.y = 0.5609855;
+    cutter_home_pose.orientation.z = -0.5609855;
+    cutter_home_pose.orientation.w = 0.4304593;
+    // -0.5609855, 0.4304593, -0.4304593, 0.5609855
+    bool success;
+    if(req.is_gripper){
+        // success = _plan_cartesian_gripper(gripper_home_pose, 0.5);
+        group_gripper.setPoseTarget(gripper_home_pose);
+        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        show_trail(success, true);
+        if(success){
+            success = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            
+        }
+        if(!success){
+            ROS_ERROR("Gripper home execution failed");
+        }
+    }else{
+        success = _plan_cartesian_cutter(cutter_home_pose, 0.5);
+        show_trail(success, false);
+        if(success){
+            success = (group_cutter.execute(plan_cutter) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            
+        }
+        if(!success){
+            ROS_ERROR("Cutter home execution failed");
+        }
+    }
+    //TODO stub
+    res.result = success;
+    return success;         
+}
+
 static tf::Quaternion _get_norm_quat_from_axes(tf::Vector3 &ax_x, tf::Vector3 &ax_y, tf::Vector3 &ax_z)
 {
     // Create rotation matrix for end effector orientation
@@ -674,10 +762,14 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::BimanualPlanRequest::Requ
             end_effector_pose.orientation.z = new_ori.z();
             end_effector_pose.orientation.w = new_ori.w();
         }
-        bool cartesian_plan_success = _plan_cartesian_gripper(end_effector_pose, 0.5);
+        // bool cartesian_plan_success = _plan_cartesian_gripper(end_effector_pose, 0.5);
 
-        show_trail(cartesian_plan_success, true);
-        success = cartesian_plan_success;
+        // show_trail(cartesian_plan_success, true);
+        // success = cartesian_plan_success;
+        group_gripper.setPoseTarget(end_effector_pose);
+        success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        show_trail(success, true);
+
     }
     else
     {
@@ -848,7 +940,7 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
     double theta_min = atan2(B, A);
 
     // Rotate Clockwise from theta min (typically same pose as gripper)
-    double test_angle = theta_min - (M_PI / 2);
+    double test_angle = theta_min - (M_PI / 3);
 
     // Calculate test point
     tf::Vector3 test_point = peduncle_centroid + radius * (cos(test_angle) * u + sin(test_angle) * v);
@@ -912,6 +1004,7 @@ bool VADERPlanner::planCutterGraspPose(vader_msgs::BimanualPlanRequest::Request 
             current_pose.position.y += transformed_approach.y();
             current_pose.position.z += transformed_approach.z();
             finalCutterPose = current_pose;
+            ROS_INFO("Cutter orientation: (%f, %f, %f, %f)", current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z, current_pose.orientation.w);
             success = _plan_cartesian_cutter(current_pose, 0.5);
             show_trail(success, false);
         }
