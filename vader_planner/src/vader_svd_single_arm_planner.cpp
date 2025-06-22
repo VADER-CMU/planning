@@ -22,7 +22,6 @@
 #include <tf/tf.h>
 #include <tf/transform_datatypes.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-// include <xarm_moveit_servo/kinematic_constraints/utils.h>
 
 #include <geometric_shapes/shapes.h> // Include for cylinder shape
 #include <geometric_shapes/shape_operations.h>
@@ -40,7 +39,6 @@
 #include <vader_msgs/GoHomeRequest.h>
 
 #include <cmath>
-
 #include <iostream>
 
 #define SPINNER_THREAD_NUM 2
@@ -78,7 +76,6 @@ private:
     geometry_msgs::Pose pregraspFinalGripperPose;
 
     uint8_t plan_type = 0;
-    double gripper_pregrasp_cam_orig_value = 0.0;
 
     std::string PLANNING_GROUP_GRIPPER;
 
@@ -91,15 +88,14 @@ private:
     void init();
     void _add_ground_plane_collision();
     void _add_collision_wall(vader_msgs::SingleArmPlanRequest::Request &req);
-    void _add_pepper_peduncle_collision(vader_msgs::Pepper &pepper);
+    void _add_pepper_collision(vader_msgs::Pepper &pepper);
     void _clear_pepper_collision();
-    void _clear_peduncle_collision();
     void _add_storage_box_collision();
 
     bool _test_IK_for_gripper_pose(geometry_msgs::Pose &test_pose);
     bool _test_PC_gripper_approach(tf::Vector3 &axis, tf::Vector3 &centroid, double angle, double radius);
 
-    double _plan_cartesian(geometry_msgs::Pose &goal_pose);
+    bool _plan_cartesian_gripper(geometry_msgs::Pose &goal_pose, double threshold);
 
     bool planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Request &req);
     bool planGripperGraspPose(vader_msgs::SingleArmPlanRequest::Request &req);
@@ -113,12 +109,9 @@ private:
 
 void VADERPlanner::init()
 {
-    // TODO joint names?
-    display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true); /*necessary?*/
+    display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true);
 
     visual_tools = new moveit_visual_tools::MoveItVisualTools("link_base");
-    Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity();
-    text_pose.translation().z() = 0.8;
 
     _add_ground_plane_collision();
 
@@ -161,7 +154,7 @@ void VADERPlanner::_add_ground_plane_collision()
     planning_scene_interface.applyCollisionObject(ground_plane);
 }
 
-void VADERPlanner::_add_pepper_peduncle_collision(vader_msgs::Pepper &pepper)
+void VADERPlanner::_add_pepper_collision(vader_msgs::Pepper &pepper)
 {
     moveit_msgs::CollisionObject cylinder_object;
     cylinder_object.header.frame_id = group_gripper.getPlanningFrame();
@@ -176,23 +169,6 @@ void VADERPlanner::_add_pepper_peduncle_collision(vader_msgs::Pepper &pepper)
     cylinder_object.primitive_poses.push_back(pepper.fruit_data.pose);
     cylinder_object.operation = moveit_msgs::CollisionObject::ADD;
     planning_scene_interface.applyCollisionObject(cylinder_object);
-
-    //  moveit_msgs::CollisionObject peduncle_object;
-    //  peduncle_object.header.frame_id = group_gripper.getPlanningFrame();
-    //  peduncle_object.id = "peduncle";
-
-    //  shape_msgs::SolidPrimitive peduncle_primitive;
-    //  peduncle_primitive.type = peduncle_primitive.CYLINDER;
-    //  peduncle_primitive.dimensions.resize(2);
-
-    //  peduncle_primitive.dimensions[peduncle_primitive.CYLINDER_HEIGHT] = pepper.peduncle_data.shape.dimensions[0];
-    //  peduncle_primitive.dimensions[peduncle_primitive.CYLINDER_RADIUS] = pepper.peduncle_data.shape.dimensions[1];
-    //  peduncle_object.primitives.push_back(peduncle_primitive);
-
-    //  peduncle_object.primitive_poses.push_back(pepper.peduncle_data.pose);
-    //  peduncle_object.operation = moveit_msgs::CollisionObject::ADD;
-
-    //  planning_scene_interface.applyCollisionObject(peduncle_object);
 }
 
 void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request &req)
@@ -220,7 +196,6 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
     wall_pose.orientation.y = ORIENTATION_Y;
     wall_pose.orientation.z = ORIENTATION_Z;
     wall_pose.orientation.w = ORIENTATION_W;
-
 
     wall_object.primitives.push_back(wall_primitive);
     wall_object.primitive_poses.push_back(wall_pose);
@@ -257,14 +232,10 @@ void VADERPlanner::_add_collision_wall(vader_msgs::SingleArmPlanRequest::Request
     // }
     planning_scene_interface.applyCollisionObject(wall_object);
 }
+
 void VADERPlanner::_clear_pepper_collision()
 {
     planning_scene_interface.removeCollisionObjects({"pepper"});
-}
-
-void VADERPlanner::_clear_peduncle_collision()
-{
-    planning_scene_interface.removeCollisionObjects({"peduncle"});
 }
 
 void VADERPlanner::_add_storage_box_collision()
@@ -384,55 +355,7 @@ void VADERPlanner::_add_storage_box_collision()
     right_face.operation = moveit_msgs::CollisionObject::ADD;
     collision_objects.push_back(right_face);
 
-    // Apply all collision objects to the planning scene
     planning_scene_interface.applyCollisionObjects(collision_objects);
-
-    // std::vector<moveit_msgs::CollisionObject> collision_objects;
-    // double wall_thickness = 0.01;
-
-    // moveit_msgs::CollisionObject positive_box;
-    // positive_box.header.frame_id = group_gripper.getPlanningFrame();
-    // positive_box.id = "storage_box_outer";
-
-    // shape_msgs::SolidPrimitive positive_primitive;
-    // positive_primitive.type = positive_primitive.BOX;
-    // positive_primitive.dimensions = {box_length, box_width, box_height};
-
-    // geometry_msgs::Pose positive_pose;
-    // positive_pose.position.x = center_x;
-    // positive_pose.position.y = center_y;
-    // positive_pose.position.z = center_z;
-    // positive_pose.orientation.w = 1.0;
-
-    // positive_box.primitives.push_back(positive_primitive);
-    // positive_box.primitive_poses.push_back(positive_pose);
-    // positive_box.operation = moveit_msgs::CollisionObject::ADD;
-
-    // moveit_msgs::CollisionObject negative_box;
-    // negative_box.header.frame_id = group_gripper.getPlanningFrame();
-    // negative_box.id = "storage_box_inner";
-
-    // shape_msgs::SolidPrimitive negative_primitive;
-    // negative_primitive.type = negative_primitive.BOX;
-    // negative_primitive.dimensions = {
-    //     box_length - 2*wall_thickness,
-    //     box_width - 2*wall_thickness,
-    //     box_height - wall_thickness
-    // };
-
-    // geometry_msgs::Pose negative_pose;
-    // negative_pose.position.x = center_x;
-    // negative_pose.position.y = center_y;
-    // negative_pose.position.z = center_z + wall_thickness + 0.02;
-
-    // negative_pose.orientation.w = 1.0;
-
-    // negative_box.primitives.push_back(negative_primitive);
-    // negative_box.primitive_poses.push_back(negative_pose);
-    // negative_box.operation = moveit_msgs::CollisionObject::REMOVE;
-
-    // planning_scene_interface.applyCollisionObject(positive_box);
-    // planning_scene_interface.applyCollisionObject(negative_box);
 }
 
 void VADERPlanner::start()
@@ -459,20 +382,27 @@ void VADERPlanner::show_trail(bool plan_result, bool is_planner)
     }
 }
 
-double VADERPlanner::_plan_cartesian(geometry_msgs::Pose &goal_pose){
+bool VADERPlanner::_plan_cartesian_gripper(geometry_msgs::Pose &goal_pose, double threshold)
+{
     std::vector<geometry_msgs::Pose> waypoints;
     waypoints.push_back(goal_pose);
     group_gripper.setMaxVelocityScalingFactor(maxV_scale_factor);
     moveit_msgs::RobotTrajectory trajectory;
-    
+
     double fraction = group_gripper.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
     plan_gripper.trajectory_ = trajectory;
-    return fraction;
+    fprintf(stderr, "Gripper cartesian plan coverage: %lf\n", fraction);
+
+    if (fraction < threshold)
+    {
+        ROS_ERROR("Cartesian plan coverage lower than threshold!");
+        return false;
+    }
+    return true;
 }
 
 bool VADERPlanner::planning_service_handler(vader_msgs::SingleArmPlanRequest::Request &req, vader_msgs::SingleArmPlanRequest::Response &res)
 {
-
     // Gripper
     plan_type = req.mode; // Store which plan is being used for gripper and check this when executing
     bool success;
@@ -540,16 +470,11 @@ bool VADERPlanner::execution_service_handler(vader_msgs::SingleArmExecutionReque
 
             // exec_ok = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
 
-            double fraction =_plan_cartesian(current_pose);
-            bool success = true;
+            bool cartesian_plan_success = _plan_cartesian_gripper(current_pose, 0.5);
 
-            if(fraction<0.5){
-                success = false;
-            }
-            fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
-
-            show_trail(success, true);
-            if (success) {
+            show_trail(cartesian_plan_success, true);
+            if (cartesian_plan_success)
+            {
                 exec_ok = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
                 geometry_msgs::PoseStamped current_pose_stamped = group_gripper.getCurrentPose();
                 geometry_msgs::Pose current_pose = current_pose_stamped.pose;
@@ -560,10 +485,12 @@ bool VADERPlanner::execution_service_handler(vader_msgs::SingleArmExecutionReque
             }
         }
     }
-    else if(plan_type == req.GRIPPER_PREGRASP_EXEC)
+    else if (plan_type == req.GRIPPER_PREGRASP_EXEC)
     {
         exec_ok = (group_gripper.execute(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    } else {
+    }
+    else
+    {
         ROS_ERROR("Why are we here");
     }
 
@@ -699,7 +626,7 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Req
 {
     _add_storage_box_collision();
     // display pepper as collision obj
-    _add_pepper_peduncle_collision(req.pepper);
+    _add_pepper_collision(req.pepper);
     // Add collision wall to the scene
     _add_collision_wall(req);
 
@@ -859,31 +786,31 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Req
         // // Add 90-deg cam rotation
         if (req.gripper_camera_rotation == req.GRIPPER_DO_ROTATE_CAMERA)
         {
-        //     int num_joints = joint_values.size();
-        //     gripper_pregrasp_cam_orig_value = joint_values[num_joints - 1];
-        //     if (num_joints > 0)
-        //     {
+            //     int num_joints = joint_values.size();
+            //     gripper_pregrasp_cam_orig_value = joint_values[num_joints - 1];
+            //     if (num_joints > 0)
+            //     {
 
-        //         // Rotate only the final joint by 90 degrees
-        //         joint_values[num_joints - 1] -= M_PI / 2.0;
+            //         // Rotate only the final joint by 90 degrees
+            //         joint_values[num_joints - 1] -= M_PI / 2.0;
 
-        //         // Normalize the joint angle to the range (-PI, PI) if needed
-        //         while (joint_values[num_joints - 1] > M_PI)
-        //         {
-        //             joint_values[num_joints - 1] -= 2.0 * M_PI;
-        //         }
-        //         while (joint_values[num_joints - 1] < -M_PI)
-        //         {
-        //             joint_values[num_joints - 1] += 2.0 * M_PI;
-        //         }
+            //         // Normalize the joint angle to the range (-PI, PI) if needed
+            //         while (joint_values[num_joints - 1] > M_PI)
+            //         {
+            //             joint_values[num_joints - 1] -= 2.0 * M_PI;
+            //         }
+            //         while (joint_values[num_joints - 1] < -M_PI)
+            //         {
+            //             joint_values[num_joints - 1] += 2.0 * M_PI;
+            //         }
 
-        //         ROS_INFO("Final joint before rotation: %f, after rotation: %f radians",
-        //                  joint_values[num_joints - 1] - M_PI / 2.0, joint_values[num_joints - 1]);
-        //     }
+            //         ROS_INFO("Final joint before rotation: %f, after rotation: %f radians",
+            //                  joint_values[num_joints - 1] - M_PI / 2.0, joint_values[num_joints - 1]);
+            //     }
             tf::Quaternion curr_ori;
             tf::quaternionMsgToTF(end_effector_pose.orientation, curr_ori);
             tf::Quaternion rotate_90;
-            rotate_90.setRPY(0, 0, -M_PI/2);
+            rotate_90.setRPY(0, 0, -M_PI / 2);
             tf::Quaternion new_ori = curr_ori * rotate_90;
             new_ori.normalize();
             end_effector_pose.orientation.x = new_ori.x();
@@ -897,16 +824,9 @@ bool VADERPlanner::planGripperPregraspPose(vader_msgs::SingleArmPlanRequest::Req
         // group_gripper.setJointValueTarget(joint_values);
         // success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
         // show_trail(success, true);
-        double fraction =_plan_cartesian(end_effector_pose);
-        success = true;
-
-        if(fraction < 0.5){
-            ROS_ERROR("Poo");
-            success = false;
-        }
-        fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
-
-        show_trail(success, true);
+        bool cartesian_plan_success = _plan_cartesian_gripper(end_effector_pose, 0.5);
+        show_trail(cartesian_plan_success, true);
+        success = cartesian_plan_success;
     }
     else
     {
@@ -921,7 +841,7 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::SingleArmPlanRequest::Reques
 {
 
     // display pepper as collision obj
-    // _add_pepper_peduncle_collision(req.pepper);
+    // _add_pepper_collision(req.pepper);
     _clear_pepper_collision();
 
     tf::Quaternion pepper_quat;
@@ -1046,16 +966,10 @@ bool VADERPlanner::planGripperGraspPose(vader_msgs::SingleArmPlanRequest::Reques
         // group_gripper.setJointValueTarget(joint_values);
         // success = (group_gripper.plan(plan_gripper) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
         // show_trail(success, true);
-        double fraction =_plan_cartesian(end_effector_pose);
-        success = true;
-
-        if(fraction < 0.5){
-            ROS_ERROR("Poopoo");
-            success = false;
-        }
+        bool cartesian_plan_success = _plan_cartesian_gripper(end_effector_pose, 0.5);
         pregraspFinalGripperPose = end_effector_pose;
-        fprintf(stderr, "[XArmSimplePlanner::do_single_cartesian_plan(): ] Coverage: %lf\n", fraction);
-
+        show_trail(cartesian_plan_success, true);
+        success = cartesian_plan_success;
     }
     else
     {
