@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="vader_planner" type="hello_world" name="hello_world" output="screen"/>
+</launch>
