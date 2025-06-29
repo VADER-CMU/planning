@@ -1,0 +1,27 @@
+<launch>
+    <!-- This file is to be used in single-arm motion planning testing.-->
+    <!-- This creates a single xArm7 robot in both gazebo and moveit, and launches the RViz/Gazebo windows. -->
+
+
+
+
+    <!-- startup simulated world -->
+    <include file="$(find xarm_gazebo)/launch/xarm7_single.launch">
+        <arg name="paused" value="false"/>
+        <arg name="gui" value="true"/>
+    </include>
+
+    <!-- Remap the name space so it can send command to gazebo loaded controller -->
+    <!-- this remap must appear BEFORE move_group launch -->
+    <arg name="robot_controller_name" value="xarm7_traj_controller" />
+    <remap from="/follow_joint_trajectory" to="/xarm/$(arg robot_controller_name)/follow_joint_trajectory"/>
+
+    <include file="$(find xarm7_moveit_config)/launch/moveit_rviz_common.launch">
+        <arg name="show_rviz" value="true"/>
+        <arg name="sim_gazebo" value="true"/>
+        <arg name="add_gripper" value="false"/>  
+        <arg name="NO_GUI_CTRL" default="false"/>
+        <arg name="pub_tf" value="false" />
+    </include>
+
+</launch>
