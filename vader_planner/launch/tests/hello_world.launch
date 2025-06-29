@@ -1,0 +1,4 @@
+<launch>
+    <include file="$(find vader_planner)/launch/tests/setups/_moveit_gazebo_single_arm_test_setup.launch"/>
+    <node pkg="vader_planner" type="hello_world" name="hello_world" output="screen"/>
+</launch>

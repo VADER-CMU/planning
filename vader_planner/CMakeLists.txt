@@ -23,6 +23,9 @@ COMPONENTS
     vader_msgs
     tf
     sensor_msgs
+    gazebo_msgs
+    roscpp
+    roslib
 )
 
 ## System dependencies are found with CMake's conventions
@@ -263,6 +266,10 @@ target_link_libraries(vader_svd_dual_arm_planner ${catkin_LIBRARIES})
 add_executable(vader_svd_single_arm_planner src/vader_svd_single_arm_planner.cpp)
 add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
+
+add_executable(hello_world src/tests/hello.cpp)
+add_dependencies(hello_world ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(hello_world ${catkin_LIBRARIES})
 
 # add_executable(xarm_simple_planner_test src/xarm_simple_planner_test.cpp)
 # add_dependencies(xarm_simple_planner_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
