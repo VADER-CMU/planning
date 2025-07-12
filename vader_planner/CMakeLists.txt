@@ -192,11 +192,11 @@ ${catkin_INCLUDE_DIRS}
 # )
 
 ## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
@@ -218,6 +218,9 @@ ${catkin_INCLUDE_DIRS}
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
+add_library(utils src/utils/utils.cpp)
+add_dependencies(utils ${catkin_EXPORTED_TARGETS})
+target_link_libraries(utils ${catkin_LIBRARIES})
 # add_executable(xarm_simple_planner src/xarm_simple_planner.cpp)
 # add_dependencies(xarm_simple_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # target_link_libraries(xarm_simple_planner ${catkin_LIBRARIES})
@@ -267,18 +270,15 @@ add_executable(vader_svd_single_arm_planner src/vader_svd_single_arm_planner.cpp
 add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
 
+#-------------------------------------manual tests-------------------------------------#
+
 add_executable(hello_world src/tests/hello.cpp)
 add_dependencies(hello_world ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(hello_world ${catkin_LIBRARIES})
 
-# add_executable(xarm_simple_planner_test src/xarm_simple_planner_test.cpp)
-# add_dependencies(xarm_simple_planner_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
-# add_dependencies(xarm_simple_planner_test xarm_msgs_generate_messages_cpp)
-# target_link_libraries(xarm_simple_planner_test ${catkin_LIBRARIES})
-
-# add_executable(xarm_gripper_planner src/xarm_gripper_planner.cpp)
-# add_dependencies(xarm_gripper_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-# target_link_libraries(xarm_gripper_planner ${catkin_LIBRARIES})
+add_executable(collision_object_utils_tests src/tests/collision_object_utils_tests.cpp)
+add_dependencies(collision_object_utils_tests ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(collision_object_utils_tests utils ${catkin_LIBRARIES})
 
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 install(TARGETS
@@ -294,6 +294,8 @@ install(TARGETS
   # cutter_logic_test
   # vader_single_arm_planner_pgtg
   # vader_single_arm_planner_PC_withrot
+  utils
+  collision_object_utils_tests
   vader_svd_dual_arm_planner
   vader_svd_single_arm_planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

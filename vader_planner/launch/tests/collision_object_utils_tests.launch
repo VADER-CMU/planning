@@ -1,0 +1,9 @@
+<launch>
+
+    <include file="$(find vader_planner)/launch/tests/setups/_moveit_gazebo_single_arm_test_setup.launch">
+    </include>
+
+    <!-- Start collision_object_utils_tests node -->
+    <node pkg="vader_planner" type="collision_object_utils_tests" name="collision_object_utils_tests" output="screen" />
+
+</launch>
