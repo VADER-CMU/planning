@@ -143,7 +143,7 @@ planner_configs:
   VADER:
     type: geometric::RRTstar
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
-    optimization_objective: NonExistent  # Optimization objective for path length
+    optimization_objective: VADERCustomObjective  # Optimization objective for path length
 xarm7:
   default_planner_config: VADER
   planner_configs:
