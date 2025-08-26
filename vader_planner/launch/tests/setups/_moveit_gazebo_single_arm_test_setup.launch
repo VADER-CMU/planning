@@ -11,6 +11,9 @@
         <arg name="gui" value="true"/>
     </include>
 
+    <!-- Properly kill gazebo clients after Ctrl+C by chasing it with a SIGKILL -->
+    <node pkg="vader_planner" type="gazebo_assassin" name="gazebo_assassin" output="screen"/>
+
     <!-- Remap the name space so it can send command to gazebo loaded controller -->
     <!-- this remap must appear BEFORE move_group launch -->
     <arg name="robot_controller_name" value="xarm7_traj_controller" />

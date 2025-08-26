@@ -1,4 +1,3 @@
 <launch>
     <include file="$(find vader_planner)/launch/tests/setups/_moveit_gazebo_single_arm_test_setup.launch"/>
-    <node pkg="vader_planner" type="gazebo_assassin" name="gazebo_assassin" output="screen"/>
 </launch>
