@@ -12,3 +12,5 @@ class ExampleTest(unittest.TestCase):
 
 if __name__ == '__main__':
     rostest.rosrun('vader_planner', 'example_test', ExampleTest)
+    
+    
