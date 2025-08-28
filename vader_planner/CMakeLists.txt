@@ -69,13 +69,13 @@ COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   pose_plan.srv
-#   joint_plan.srv
-#   exec_plan.srv
-#   single_straight_plan.srv
-# )
+add_service_files(
+  FILES
+  pose_plan.srv
+  joint_plan.srv
+  exec_plan.srv
+  single_straight_plan.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -274,6 +274,12 @@ add_executable(gazebo_assassin src/utils/gazebo_assassin.cpp)
 add_dependencies(gazebo_assassin ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
 
+#-------------------------------------automated testing-------------------------------------#
+
+add_executable(planner_tester src/planner_tester.cpp)
+add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(planner_tester ${catkin_LIBRARIES})
+
 #-------------------------------------manual tests-------------------------------------#
 
 add_executable(hello_world src/tests/hello.cpp)
@@ -303,6 +309,7 @@ install(TARGETS
   vader_svd_dual_arm_planner
   vader_svd_single_arm_planner
   gazebo_assassin
+  planner_tester
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

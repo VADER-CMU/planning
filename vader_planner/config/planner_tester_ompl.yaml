@@ -1,0 +1,90 @@
+# Planner Tester OMPL Configuration for RRT* Testing
+# This file contains RRT* specific parameters that will be modified during testing
+
+# RRT* Planner Configuration
+RRTstar:
+  # Core RRT* parameters
+  range: 0.1                    # Maximum distance for new node connections
+  goal_bias: 0.05               # Probability of sampling toward goal vs random
+  delay_collision_checking: true # Whether to delay collision checking for performance
+  use_k_nearest: true           # Use k-nearest neighbor vs radius-based selection
+  rewire_factor: 1.1            # Factor for rewiring radius calculation
+  max_nearest_neighbors: 10     # Maximum number of neighbors to consider
+  max_states: 1000              # Maximum number of states to store
+  
+  # Sampling strategy parameters
+  use_informed_sampling: true   # Enable informed sampling for better convergence
+  sample_rejection_attempts: 100 # Number of attempts before rejecting a sample
+  use_rejection_sampling: false # Enable rejection sampling
+  
+  # Optimization parameters
+  optimize: true                # Enable path optimization
+  max_iterations: 10000         # Maximum iterations for optimization
+  max_optimization_time: 30.0   # Maximum time for optimization (seconds)
+
+# Planning Scene Configuration
+planning_scene:
+  # Collision object generation
+  num_random_blocks: 35         # Number of random collision objects
+  min_block_size: 0.05          # Minimum block dimension (meters)
+  max_block_size: 0.25          # Maximum block dimension (meters)
+  workspace_radius: 1.2         # Workspace radius around robot base (meters)
+  min_height: 0.1               # Minimum height above ground (meters)
+  max_height: 1.0               # Maximum height (meters)
+  arm_safety_radius: 0.15       # Safety distance from arm base (meters)
+  block_safety_margin: 0.05     # Minimum distance between blocks (meters)
+
+# Testing Configuration
+testing:
+  # Fixed goal pose for testing (amidst collision objects)
+  fixed_goal:
+    position: [0.3, 0.0, 0.4]  # [x, y, z] in meters
+    orientation: [1.0, 0.0, 0.0, 0.0]  # [w, x, y, z] quaternion
+  
+  # Test execution parameters
+  num_trials: 50                # Number of parameter combinations to test
+  delay_between_tests: 0.5      # Delay between tests (seconds)
+  planning_timeout: 30.0        # Maximum planning time per test (seconds)
+  
+  # Parameter variation ranges for intelligent sampling
+  parameter_ranges:
+    range: [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
+    goal_bias: [0.01, 0.05, 0.1, 0.15, 0.2, 0.25]
+    rewire_factor: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+    max_nearest_neighbors: [5, 10, 15, 20, 25, 30]
+
+# Logging Configuration
+logging:
+  csv_path: "/root/catkin_ws/ompl_testing_results.csv"  # Results output path
+  include_timestamp: true        # Include timestamp in results
+  include_planner_params: true   # Include all parameter values in results
+  include_trajectory_analysis: true  # Include detailed trajectory metrics
+  
+  # Metrics to collect
+  metrics:
+    planning_time: true          # Planning execution time
+    path_length: true            # Total path length
+    path_smoothness: true        # Path smoothness measure
+    success_rate: true           # Planning success/failure
+    solution_cost: true          # Solution cost (if available)
+    iterations: true             # Number of iterations
+    tree_size: true              # Final tree size
+    path_segments: true          # Number of waypoints
+    memory_usage: true           # Memory consumption
+    collision_checks: true       # Number of collision checks
+    sampling_attempts: true      # Number of sampling attempts
+
+# Performance Tuning
+performance:
+  # MoveIt specific settings
+  max_velocity_scaling_factor: 0.3    # Maximum velocity scaling
+  max_acceleration_scaling_factor: 0.3 # Maximum acceleration scaling
+  
+  # Planning request settings
+  planning_attempts: 3                 # Number of planning attempts
+  planning_time: 30.0                  # Planning time limit (seconds)
+  max_cartesian_speed: 0.1             # Maximum Cartesian speed (m/s)
+  
+  # Trajectory execution
+  execute_trajectory: false            # Whether to execute planned trajectories
+  allow_replanning: true               # Allow replanning if execution fails 
