@@ -274,6 +274,10 @@ add_executable(gazebo_assassin src/utils/gazebo_assassin.cpp)
 add_dependencies(gazebo_assassin ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
 
+add_executable(vader_cost_objective src/utils/vader_cost_objective.cpp)
+add_dependencies(vader_cost_objective ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_cost_objective ${catkin_LIBRARIES})
+
 #-------------------------------------manual tests-------------------------------------#
 
 add_executable(hello_world src/tests/hello.cpp)
@@ -303,6 +307,7 @@ install(TARGETS
   vader_svd_dual_arm_planner
   vader_svd_single_arm_planner
   gazebo_assassin
+  vader_cost_objective
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

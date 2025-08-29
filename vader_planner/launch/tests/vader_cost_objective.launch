@@ -1,0 +1,4 @@
+<launch>
+    <!-- <include file="$(find vader_planner)/launch/tests/setups/_moveit_rviz_single_arm_test_setup.launch"/> -->
+    <node name="vader_cost_objective" pkg="vader_planner" type="vader_cost_objective" output="screen"/>
+</launch>
