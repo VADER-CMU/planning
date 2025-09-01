@@ -6,6 +6,8 @@
 #include <Eigen/Dense>
 #include <chrono>
 
+#include <ompl/base/objectives/PathLengthOptimizationObjective.h>
+#include <ompl/base/objectives/MaximizeMinClearanceObjective.h>
 /**
  * @brief Computes the forward kinematics for the XArm robot.
  * 
@@ -69,31 +71,31 @@ private:
 
 
 //TODO move this to our package instead of moveit, ref it there
-// class VADERCustomObjective : public ompl::base::MultiOptimizationObjective
-// {
-// public:
-//   VADERCustomObjective(const ompl::base::SpaceInformationPtr& si)
-//   : ompl::base::MultiOptimizationObjective(si)
-//     {    
-//       ROS_INFO_NAMED("VADERCustomObjective", "Starting");
+class VADERCustomObjective2 : public ompl::base::MultiOptimizationObjective
+{
+public:
+  VADERCustomObjective2(const ompl::base::SpaceInformationPtr& si)
+  : ompl::base::MultiOptimizationObjective(si)
+    {    
+    //   ROS_INFO_NAMED("VADERCustomObjective", "Starting");
 
-//       addObjective(std::make_shared<ompl::base::PathLengthOptimizationObjective>(si), 10.0);
-//       addObjective(std::make_shared<ompl::base::MaximizeMinClearanceObjective>(si), 1.0);
-//     }
+      addObjective(std::make_shared<ompl::base::PathLengthOptimizationObjective>(si), 10.0);
+      addObjective(std::make_shared<ompl::base::MaximizeMinClearanceObjective>(si), 1.0);
+    }
   
-//     // Cost of motion between two states. This is the ONLY method that is called when planning.
-//     ompl::base::Cost motionCost(const ompl::base::State* s1, const ompl::base::State* s2) const override
-//     {
-//       ompl::base::Cost c = identityCost();
-//       for (const auto &component : components_)
-//       {
-//           c = ompl::base::Cost(c.value() + component.weight * (component.objective->motionCost(s1, s2).value()));
-//       }
+    // Cost of motion between two states. This is the ONLY method that is called when planning.
+    ompl::base::Cost motionCost(const ompl::base::State* s1, const ompl::base::State* s2) const override
+    {
+      ompl::base::Cost c = identityCost();
+      for (const auto &component : components_)
+      {
+          c = ompl::base::Cost(c.value() + component.weight * (component.objective->motionCost(s1, s2).value()));
+      }
 
-//       // ROS_INFO_NAMED("VADERCustomObjective", "Motion cost: %f", c.value());
-//       return c;
-//     }
-// };
+      // ROS_INFO_NAMED("VADERCustomObjective", "Motion cost: %f", c.value());
+      return c;
+    }
+};
 
 
 

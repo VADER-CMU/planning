@@ -26,6 +26,7 @@ COMPONENTS
     gazebo_msgs
     roscpp
     roslib
+    ompl
 )
 
 ## System dependencies are found with CMake's conventions
@@ -138,6 +139,7 @@ catkin_package(
 include_directories(
 include
 ${catkin_INCLUDE_DIRS}
+${OMPL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
