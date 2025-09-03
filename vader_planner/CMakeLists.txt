@@ -278,7 +278,7 @@ target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
 
 add_executable(vader_cost_objective src/utils/vader_cost_objective.cpp)
 add_dependencies(vader_cost_objective ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_cost_objective ${catkin_LIBRARIES})
+target_link_libraries(vader_cost_objective ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
 
 #-------------------------------------manual tests-------------------------------------#
 

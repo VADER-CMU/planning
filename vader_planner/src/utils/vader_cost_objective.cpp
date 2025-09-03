@@ -162,21 +162,32 @@ int main() {
 
     // Create dummy OMPL state space and states
     // Linker error
-    // auto space = std::make_shared<ompl::base::RealVectorStateSpace>(XArmForwardKinematics::N_JOINTS);
-    // ompl::base::ScopedState<> state1(space), state2(space);
-    // for (size_t i = 0; i < XArmForwardKinematics::N_JOINTS; ++i) {
-    //     state1->as<ompl::base::RealVectorStateSpace::StateType>()->values[i] = joints1[i];
-    //     state2->as<ompl::base::RealVectorStateSpace::StateType>()->values[i] = joints2[i];
-    // }
+    auto space = std::make_shared<ompl::base::RealVectorStateSpace>(XArmForwardKinematics::N_JOINTS);
+    ompl::base::ScopedState<> state1(space), state2(space);
+    for (size_t i = 0; i < XArmForwardKinematics::N_JOINTS; ++i) {
+        state1->as<ompl::base::RealVectorStateSpace::StateType>()->values[i] = joints1[i];
+        state2->as<ompl::base::RealVectorStateSpace::StateType>()->values[i] = joints2[i];
+    }
 
-    // // Create SpaceInformation pointer
-    // auto si = std::make_shared<ompl::base::SpaceInformation>(space);
+    // Create SpaceInformation pointer
+    auto si = std::make_shared<ompl::base::SpaceInformation>(space);
 
-    // // Create the objective
-    // XarmTaskSpaceOptimizationObjective objective(si);
+    // Create the objective
+    XarmTaskSpaceOptimizationObjective objective(si);
 
-    // // Compute and print the motion cost
-    // ompl::base::Cost cost = objective.motionCost(state1.get(), state2.get());
-    // std::cout << "Motion cost between joint positions: " << cost.value() << std::endl;
+    // Compute and print the motion cost
+    double total_time_ms = 0.0;
+    ompl::base::Cost cost;
+    for (int i = 0; i < 50; ++i) {
+        auto start = std::chrono::high_resolution_clock::now();
+        cost = objective.motionCost(state1.get(), state2.get());
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        total_time_ms += elapsed.count();
+    }
+    double avg_time_ms = total_time_ms / 50.0;
+    // Avg. duration is 20 microseconds per call
+    std::cout << "Average motionCost duration over 50 runs: " << avg_time_ms << " ms" << std::endl;
+    std::cout << "Motion cost between joint positions: " << cost.value() << std::endl;
     return 0;
 }
