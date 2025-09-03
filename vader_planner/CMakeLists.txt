@@ -8,8 +8,10 @@ endif()
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
+find_package(yaml-cpp REQUIRED)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
+find_package(yaml-cpp REQUIRED)
 COMPONENTS
     moveit_core
     moveit_visual_tools
@@ -54,6 +56,7 @@ COMPONENTS
 ## * In this file (CMakeLists.txt):
 ##   * add "message_generation" and every package in MSG_DEP_SET to
 ##     find_package(catkin REQUIRED COMPONENTS ...)
+find_package(yaml-cpp REQUIRED)
 ##   * add "message_runtime" and every package in MSG_DEP_SET to
 ##     catkin_package(CATKIN_DEPENDS ...)
 ##   * uncomment the add_*_files sections below as needed
@@ -104,6 +107,7 @@ generate_messages(
 ## * In this file (CMakeLists.txt):
 ##   * add "dynamic_reconfigure" to
 ##     find_package(catkin REQUIRED COMPONENTS ...)
+find_package(yaml-cpp REQUIRED)
 ##   * uncomment the "generate_dynamic_reconfigure_options" section below
 ##     and list every .cfg file to be processed
 
@@ -271,8 +275,14 @@ add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS
 target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
 
 add_executable(gazebo_assassin src/utils/gazebo_assassin.cpp)
+planner_tester
+add_executable(planner_tester src/planner_tester.cpp)
+add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(planner_tester ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 add_dependencies(gazebo_assassin ${${PROJECT_NAME}_EXPORTED_TARGETS})
+planner_tester
 target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
+planner_tester
 
 #-------------------------------------manual tests-------------------------------------#
 
@@ -303,6 +313,7 @@ install(TARGETS
   vader_svd_dual_arm_planner
   vader_svd_single_arm_planner
   gazebo_assassin
+planner_tester
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

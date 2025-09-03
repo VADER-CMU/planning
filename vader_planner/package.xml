@@ -46,8 +46,10 @@
   <build_depend>tf</build_depend>
   
   <build_depend>gazebo_ros</build_depend>
+<build_depend>yaml-cpp</build_depend>
   <build_export_depend>gazebo_ros</build_export_depend>
   <exec_depend>gazebo_ros</exec_depend>
+<exec_depend>yaml-cpp</exec_depend>
   
   <export>
     <gazebo_ros gazebo_media_path="${prefix}" />
