@@ -8,6 +8,8 @@
 
 #include <ompl/base/objectives/PathLengthOptimizationObjective.h>
 #include <ompl/base/objectives/MaximizeMinClearanceObjective.h>
+#include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/base/OptimizationObjective.h>
 /**
  * @brief Computes the forward kinematics for the XArm robot.
  * 
@@ -69,6 +71,51 @@ private:
     }
 };
 
+class XarmTaskSpaceOptimizationObjective : public ompl::base::OptimizationObjective {
+    public:
+        XarmTaskSpaceOptimizationObjective(const ompl::base::SpaceInformationPtr& si)
+            : ompl::base::OptimizationObjective(si), xarm_fk() {}
+
+        
+        ompl::base::Cost stateCost(const ompl::base::State* s) const override {
+            // Example: zero cost for all states (customize as needed)
+            return ompl::base::Cost(0.0);
+        }
+
+        ompl::base::Cost motionCost(const ompl::base::State* s1, const ompl::base::State* s2) const override {
+            // Compute FK for both states and use L2 norm of end-effector positions as cost
+            const auto* r1 = s1->as<ompl::base::RealVectorStateSpace::StateType>();
+            const auto* r2 = s2->as<ompl::base::RealVectorStateSpace::StateType>();
+
+            std::array<double, XArmForwardKinematics::N_JOINTS> joints1, joints2;
+            for (size_t i = 0; i < XArmForwardKinematics::N_JOINTS; ++i) {
+                joints1[i] = r1->values[i];
+                joints2[i] = r2->values[i];
+            }
+
+            auto T1 = xarm_fk.forward_kinematics(joints1);
+            auto T2 = xarm_fk.forward_kinematics(joints2);
+
+            Eigen::Vector3d p1 = T1.block<3,1>(0,3);
+            Eigen::Vector3d p2 = T2.block<3,1>(0,3);
+
+            double cost = (p1 - p2).norm();
+            return ompl::base::Cost(cost);
+            // return identityCost();
+        }
+
+        ompl::base::Cost motionCostHeuristic(const ompl::base::State* s1, const ompl::base::State* s2) const override {
+            return motionCost(s1, s2);
+        }
+
+        ompl::base::Cost motionCostBestEstimate(const ompl::base::State* s1, const ompl::base::State* s2) const {
+            return motionCost(s1, s2);
+        }
+
+    private:
+        XArmForwardKinematics xarm_fk;
+
+};
 
 //TODO move this to our package instead of moveit, ref it there
 class VADERCustomObjective2 : public ompl::base::MultiOptimizationObjective
@@ -100,13 +147,36 @@ public:
 
 
 int main() {
-    XArmForwardKinematics xarm;
-    std::array<double, XArmForwardKinematics::N_JOINTS> joint_positions = {0.097,0.823,-0.67,1.758,-0.785,0,-0.384};
-    auto start = std::chrono::high_resolution_clock::now();
-    XArmForwardKinematics::Matrix4d T = xarm.forward_kinematics(joint_positions);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsed = end - start;
-    std::cout << "forward_kinematics took " << elapsed.count() << " ms\n";
-    std::cout << "End-effector transform:\n" << T << std::endl;
+    // XArmForwardKinematics xarm;
+    // std::array<double, XArmForwardKinematics::N_JOINTS> joint_positions = {0.097,0.823,-0.67,1.758,-0.785,0,-0.384};
+    // auto start = std::chrono::high_resolution_clock::now();
+    // XArmForwardKinematics::Matrix4d T = xarm.forward_kinematics(joint_positions);
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double, std::milli> elapsed = end - start;
+    // std::cout << "forward_kinematics took " << elapsed.count() << " ms\n";
+    // std::cout << "End-effector transform:\n" << T << std::endl;
+
+    // Example joint positions
+    std::array<double, XArmForwardKinematics::N_JOINTS> joints1 = {0.0, 0.1, -0.2, 0.3, -0.4, 0.5, -0.6};
+    std::array<double, XArmForwardKinematics::N_JOINTS> joints2 = {0.2, -0.1, 0.4, -0.3, 0.6, -0.5, 0.8};
+
+    // Create dummy OMPL state space and states
+    // Linker error
+    // auto space = std::make_shared<ompl::base::RealVectorStateSpace>(XArmForwardKinematics::N_JOINTS);
+    // ompl::base::ScopedState<> state1(space), state2(space);
+    // for (size_t i = 0; i < XArmForwardKinematics::N_JOINTS; ++i) {
+    //     state1->as<ompl::base::RealVectorStateSpace::StateType>()->values[i] = joints1[i];
+    //     state2->as<ompl::base::RealVectorStateSpace::StateType>()->values[i] = joints2[i];
+    // }
+
+    // // Create SpaceInformation pointer
+    // auto si = std::make_shared<ompl::base::SpaceInformation>(space);
+
+    // // Create the objective
+    // XarmTaskSpaceOptimizationObjective objective(si);
+
+    // // Compute and print the motion cost
+    // ompl::base::Cost cost = objective.motionCost(state1.get(), state2.get());
+    // std::cout << "Motion cost between joint positions: " << cost.value() << std::endl;
     return 0;
 }
