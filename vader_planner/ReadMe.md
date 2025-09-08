@@ -71,3 +71,6 @@ Refer to issue [#57](https://github.com/xArm-Developer/xarm_ros/issues/57), now 
 
 ![VISUAL_TRAJ1](../doc/visual_traj1.png)
 ![VISUAL_TRAJ2](../doc/visual_traj2.png)
+
+
+For OMPL - RRT* params, refer to this link [Link](https://ompl.kavrakilab.org/RRTstar_8h_source.html)
