@@ -7,8 +7,7 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 ## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-find_package(yaml-cpp REQUIRED)
+
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
 find_package(yaml-cpp REQUIRED)
@@ -40,7 +39,6 @@ COMPONENTS
 # catkin_python_setup()
 
 
-find_package(yaml-cpp REQUIRED)
 
 # add_message_files(
 
@@ -58,7 +56,6 @@ generate_messages(
 )
 
 
-find_package(yaml-cpp REQUIRED)
 
 # generate_dynamic_reconfigure_options(
 
