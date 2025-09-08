@@ -11,7 +11,7 @@ The planner tester is a ROS-based tool that evaluates robot arm motion planning 
 
 ### Environment Setup
 - **Ground plane**: Flat surface to prevent arm from going below ground
-- **Strategic obstacles**: 12 small blocks (2-4cm) placed between robot and goal
+- **Strategic obstacles**: Small blocks placed between robot and goal
 - **Fixed goal**: Target position for the arm
 - **Deterministic seed**: Same obstacle layout every run for consistent testing
 
