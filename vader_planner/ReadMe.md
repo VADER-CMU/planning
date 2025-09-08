@@ -1,7 +1,7 @@
 # Package Introduction
 
 
-For OMPL - RRT* params, refer to these links: [Link1](https://ompl.kavrakilab.org/RRTstar_8h_source.html) [Link2](https://ompl.kavrakilab.org/classompl_1_1geometric_1_1RRTstar.html) [Link3]()
+For OMPL - RRT* params, refer to these links: [Link1](https://ompl.kavrakilab.org/RRTstar_8h_source.html) [Link2](https://ompl.kavrakilab.org/classompl_1_1geometric_1_1RRTstar.html) 
 # Planner Tester Overview
 
 ## What it does
