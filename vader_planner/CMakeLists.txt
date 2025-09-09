@@ -9,9 +9,10 @@ endif()
 ## Find catkin macros and libraries
 
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED
+
 find_package(yaml-cpp REQUIRED)
-COMPONENTS
+find_package(catkin REQUIRED
+    COMPONENTS
     moveit_core
     moveit_visual_tools
     moveit_ros_planning
@@ -63,10 +64,13 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES xarm_planner
  CATKIN_DEPENDS message_runtime geometry_msgs std_msgs vader_msgs moveit_visual_tools
+)
 
 include_directories(
 include
 ${catkin_INCLUDE_DIRS}
+${YAML_CPP_INCLUDE_DIR}
+
 )
 
 ## Declare a C++ library
@@ -190,14 +194,12 @@ add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS
 target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
 
 add_executable(gazebo_assassin src/utils/gazebo_assassin.cpp)
-planner_tester
+add_dependencies(gazebo_assassin ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
+
 add_executable(planner_tester src/planner_tester.cpp)
 add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(planner_tester ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
-add_dependencies(gazebo_assassin ${${PROJECT_NAME}_EXPORTED_TARGETS})
-planner_tester
-target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
-planner_tester
 
 #-------------------------------------manual tests-------------------------------------#
 
@@ -228,7 +230,7 @@ install(TARGETS
   vader_svd_dual_arm_planner
   vader_svd_single_arm_planner
   gazebo_assassin
-planner_tester
+  planner_tester
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
