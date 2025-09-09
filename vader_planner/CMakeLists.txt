@@ -7,7 +7,7 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 ## Find catkin macros and libraries
-
+#Fixing the bloody brackers here
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
     moveit_core
