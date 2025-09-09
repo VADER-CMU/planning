@@ -282,10 +282,11 @@ target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
 
 add_executable(vader_cost_objective src/utils/vader_cost_objective.cpp)
 add_dependencies(vader_cost_objective ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_cost_objective ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
+target_link_libraries(vader_cost_objective ${catkin_LIBRARIES} ${OMPL_LIBRARIES} utils)
+
 add_executable(planner_tester src/planner_tester.cpp)
 add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(planner_tester ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+target_link_libraries(planner_tester utils ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 #-------------------------------------manual tests-------------------------------------#
 

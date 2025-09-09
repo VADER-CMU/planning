@@ -21,6 +21,10 @@
 #include <algorithm>
 #include <unistd.h>
 
+#include <Eigen/Dense>
+
+#include "utils/utils.h"
+
 // #include "utils/vader_cost_objective.h"
 
 #define SPINNER_THREAD_NUM 2
@@ -102,6 +106,8 @@ class PlannerTester
     ros::Subscriber exec_plan_sub; 
     ros::ServiceServer exec_plan_srv; 
 
+    std::shared_ptr<XArmForwardKinematics> xarm_fk_ptr;
+
 
     std::mt19937 rng;
     std::vector<BlockInfo> generated_blocks;
@@ -118,8 +124,8 @@ class PlannerTester
     void updateYAMLConfig(const RRTStarParams& params);
     bool loadYAMLConfig();
     
-    
-    double calculatePathLength(const moveit_msgs::RobotTrajectory& trajectory);
+    double calculateTaskPathLength(const moveit_msgs::RobotTrajectory& trajectory);
+    double calculateJointPathLength(const moveit_msgs::RobotTrajectory& trajectory);
 
     void init();
     void analyze_trajectory(const moveit_msgs::RobotTrajectory& trajectory, const std::string& plan_type);
@@ -167,6 +173,8 @@ void PlannerTester::init()
   if (!loadYAMLConfig()) {
     ROS_WARN("Failed to load YAML config from all paths, using default parameters");
   }
+
+  xarm_fk_ptr = std::make_shared<XArmForwardKinematics>();
   
   create_ground_plane();
   
@@ -493,7 +501,7 @@ void PlannerTester::updateYAMLConfig(const RRTStarParams& params)
     }
 }
 
-double PlannerTester::calculatePathLength(const moveit_msgs::RobotTrajectory& trajectory)
+double PlannerTester::calculateJointPathLength(const moveit_msgs::RobotTrajectory& trajectory)
 {
     if(trajectory.joint_trajectory.points.empty())
         return 0.0;
@@ -512,6 +520,40 @@ double PlannerTester::calculatePathLength(const moveit_msgs::RobotTrajectory& tr
             segment_length += joint_diff * joint_diff;
         }
         total_length += sqrt(segment_length);
+    }
+    
+    return total_length;
+}
+
+double PlannerTester::calculateTaskPathLength(const moveit_msgs::RobotTrajectory& trajectory)
+{
+    if(trajectory.joint_trajectory.points.empty())
+        return 0.0;
+    
+    double total_length = 0.0;
+    
+    for(size_t i = 1; i < trajectory.joint_trajectory.points.size(); i++)
+    {
+        double segment_length = 0.0;
+        const auto& prev_point = trajectory.joint_trajectory.points[i-1];
+        const auto& curr_point = trajectory.joint_trajectory.points[i];
+        std::array<double, XArmForwardKinematics::N_JOINTS> prev_arr, curr_arr;
+        for (size_t i = 0; i < 7; ++i){
+            prev_arr[i] = prev_point.positions[i];
+            curr_arr[i] = curr_point.positions[i];
+        }    
+        // Compute FK for both points as Eigen::Matrix4d
+        Eigen::Matrix4d prev_tf = xarm_fk_ptr->forward_kinematics(prev_arr);
+        Eigen::Matrix4d curr_tf = xarm_fk_ptr->forward_kinematics(curr_arr);
+
+        // Extract translation components
+        Eigen::Vector3d prev_pos = prev_tf.block<3,1>(0,3);
+        Eigen::Vector3d curr_pos = curr_tf.block<3,1>(0,3);
+
+        // Compute L2 norm between the two positions
+        segment_length = (curr_pos - prev_pos).norm();
+
+        total_length += segment_length;
     }
     
     return total_length;
@@ -597,7 +639,7 @@ PlanningMetrics PlannerTester::runSingleTest(const RRTStarParams& params)
     
     if (success)
     {
-        metrics.path_length = calculatePathLength(my_xarm_plan.trajectory_);
+        metrics.path_length = calculateJointPathLength(my_xarm_plan.trajectory_);
     }
     
     return metrics;

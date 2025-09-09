@@ -71,5 +71,27 @@ private:
     double d, a, alpha;
   };
 
+static constexpr std::array<DHParams, N_JOINTS> dh = {{
+    { 0.267, 0.0, -M_PI/2 },
+    { 0.000, 0.0,  M_PI/2 },
+    { 0.293, 0.0525, M_PI/2 },
+    { 0.000, 0.0775, M_PI/2 },
+    { 0.3425, 0.0, M_PI/2 },
+    { 0.000, 0.076, -M_PI/2 },
+    { 0.097, 0.0, 0.0 },
+}};
+
+static constexpr std::array<double, N_JOINTS> cos_alpha = []{
+    std::array<double, N_JOINTS> c = {};
+    for (size_t i = 0; i < N_JOINTS; ++i) c[i] = std::cos(dh[i].alpha);
+    return c;
+}();
+
+static constexpr std::array<double, N_JOINTS> sin_alpha = []{
+    std::array<double, N_JOINTS> s = {};
+    for (size_t i = 0; i < N_JOINTS; ++i) s[i] = std::sin(dh[i].alpha);
+    return s;
+}();
+
   Matrix4d joint_transform(size_t i, double theta) const;
 };
