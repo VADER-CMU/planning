@@ -10,6 +10,7 @@
 #include <ompl/base/objectives/MaximizeMinClearanceObjective.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/base/OptimizationObjective.h>
+#include <ompl/base/Constraint.h>
 /**
  * @brief Computes the forward kinematics for the XArm robot.
  * 
@@ -117,17 +118,75 @@ class XarmTaskSpaceOptimizationObjective : public ompl::base::OptimizationObject
 
 };
 
-//TODO move this to our package instead of moveit, ref it there
-class VADERCustomObjective2 : public ompl::base::MultiOptimizationObjective
+
+    // Joint limits for XArm7 (https://github.com/xArm-Developer/xarm_ros/blob/master/xarm_description/urdf/xarm7/xarm7.ros2_control.xacro#L8C1-L14C68)
+    /*
+        joint1_lower_limit:=${-2.0*pi}  joint1_upper_limit:=${2.0*pi}
+        joint2_lower_limit:=${-2.059}  joint2_upper_limit:=${2.0944}
+        joint3_lower_limit:=${-2.0*pi}  joint3_upper_limit:=${2.0*pi}
+        joint4_lower_limit:=${-0.19198}  joint4_upper_limit:=${3.927}
+        joint5_lower_limit:=${-2.0*pi}  joint5_upper_limit:=${2.0*pi}
+        joint6_lower_limit:=${-1.69297}  joint6_upper_limit:=${pi}
+        joint7_lower_limit:=${-2.0*pi}  joint7_upper_limit:=${2.0*pi}
+    */
+    constexpr std::array<double, XArmForwardKinematics::N_JOINTS> XARM_LOWER_LIMITS = {
+        -2.0 * M_PI,     // joint 1
+        -2.059,          // joint 2
+        -2.0 * M_PI,     // joint 3
+        -0.19198,        // joint 4
+        -2.0 * M_PI,     // joint 5
+        -1.69297,        // joint 6
+        -2.0 * M_PI      // joint 7
+    };
+    constexpr std::array<double, XArmForwardKinematics::N_JOINTS> XARM_UPPER_LIMITS = {
+        2.0 * M_PI,      // joint 1
+        2.0944,          // joint 2
+        2.0 * M_PI,      // joint 3
+        3.927,           // joint 4
+        2.0 * M_PI,      // joint 5
+        M_PI,            // joint 6
+        2.0 * M_PI       // joint 7
+    };
+
+class XarmJointLimitConstraint : public ompl::base::Constraint
 {
 public:
-  VADERCustomObjective2(const ompl::base::SpaceInformationPtr& si)
+    XarmJointLimitConstraint()
+        : ompl::base::Constraint(XArmForwardKinematics::N_JOINTS, 0) {}
+
+        //TODO: We are implementing the wrong signature. Shoudl be 
+    // void function(const Eigen::Ref<const Eigen::VectorXd> &x, Eigen::Ref<Eigen::VectorXd> out)
+
+    
+    void function(const ompl::base::State *state, Eigen::Ref<Eigen::VectorXd> out) const override
+    {
+        const auto *r = state->as<ompl::base::RealVectorStateSpace::StateType>();
+        bool violated = false;
+        for (size_t i = 0; i < XArmForwardKinematics::N_JOINTS; ++i)
+        {
+            double val = r->values[i];
+            if (val < XARM_LOWER_LIMITS[i] || val > XARM_UPPER_LIMITS[i])
+            {
+                violated = true;
+                break;
+            }
+        }
+        // out is zero if satisfied, nonzero if violated
+        out.resize(1);
+        out[0] = violated ? 1.0 : 0.0;
+    }
+};
+
+class VADERCustomObjective : public ompl::base::MultiOptimizationObjective
+{
+public:
+  VADERCustomObjective(const ompl::base::SpaceInformationPtr& si)
   : ompl::base::MultiOptimizationObjective(si)
     {    
     //   ROS_INFO_NAMED("VADERCustomObjective", "Starting");
 
-      addObjective(std::make_shared<ompl::base::PathLengthOptimizationObjective>(si), 10.0);
-      addObjective(std::make_shared<ompl::base::MaximizeMinClearanceObjective>(si), 1.0);
+      addObjective(std::make_shared<ompl::base::PathLengthOptimizationObjective>(si), 1.0);
+      addObjective(std::make_shared<XarmTaskSpaceOptimizationObjective>(si), 1.0);
     }
   
     // Cost of motion between two states. This is the ONLY method that is called when planning.
@@ -147,6 +206,8 @@ public:
 
 
 int main() {
+
+    /** Xarm Forward Kinematics function testing */
     // XArmForwardKinematics xarm;
     // std::array<double, XArmForwardKinematics::N_JOINTS> joint_positions = {0.097,0.823,-0.67,1.758,-0.785,0,-0.384};
     // auto start = std::chrono::high_resolution_clock::now();
@@ -156,12 +217,13 @@ int main() {
     // std::cout << "forward_kinematics took " << elapsed.count() << " ms\n";
     // std::cout << "End-effector transform:\n" << T << std::endl;
 
+
+    /** XarmTaskSpaceOptimizationObjective  testing */
     // Example joint positions
     std::array<double, XArmForwardKinematics::N_JOINTS> joints1 = {0.0, 0.1, -0.2, 0.3, -0.4, 0.5, -0.6};
     std::array<double, XArmForwardKinematics::N_JOINTS> joints2 = {0.2, -0.1, 0.4, -0.3, 0.6, -0.5, 0.8};
 
     // Create dummy OMPL state space and states
-    // Linker error
     auto space = std::make_shared<ompl::base::RealVectorStateSpace>(XArmForwardKinematics::N_JOINTS);
     ompl::base::ScopedState<> state1(space), state2(space);
     for (size_t i = 0; i < XArmForwardKinematics::N_JOINTS; ++i) {
@@ -173,7 +235,30 @@ int main() {
     auto si = std::make_shared<ompl::base::SpaceInformation>(space);
 
     // Create the objective
-    XarmTaskSpaceOptimizationObjective objective(si);
+    // XarmTaskSpaceOptimizationObjective objective(si);
+
+    // Compute and print the motion cost
+    // double total_time_ms = 0.0;
+    // ompl::base::Cost cost;
+    // for (int i = 0; i < 50; ++i) {
+    //     auto start = std::chrono::high_resolution_clock::now();
+    //     cost = objective.motionCost(state1.get(), state2.get());
+    //     auto end = std::chrono::high_resolution_clock::now();
+    //     std::chrono::duration<double, std::milli> elapsed = end - start;
+    //     total_time_ms += elapsed.count();
+    // }
+    // double avg_time_ms = total_time_ms / 50.0;
+    // Avg. duration is 20 microseconds per call
+    // std::cout << "Average motionCost duration over 50 runs: " << avg_time_ms << " ms" << std::endl;
+    // std::cout << "Motion cost between joint positions: " << cost.value() << std::endl;
+
+
+    /** XarmJointLimitConstraintObjective testing */
+
+    // Example: create a dummy state and evaluate the constraint cost
+    // ompl::base::ScopedState<> testState(space);
+
+    VADERCustomObjective objective(si);
 
     // Compute and print the motion cost
     double total_time_ms = 0.0;
@@ -189,5 +274,8 @@ int main() {
     // Avg. duration is 20 microseconds per call
     std::cout << "Average motionCost duration over 50 runs: " << avg_time_ms << " ms" << std::endl;
     std::cout << "Motion cost between joint positions: " << cost.value() << std::endl;
+
+
+
     return 0;
 }
