@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <unistd.h>
 
+// #include "utils/vader_cost_objective.h"
+
 #define SPINNER_THREAD_NUM 2
 
 /* Used for Cartesian path computation, please modify as needed: */

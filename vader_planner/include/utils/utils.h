@@ -58,3 +58,18 @@ void addTwinBoxCollisionObject(
     const std::string &reference_frame,
     const shape_msgs::SolidPrimitive &primitive,
     const geometry_msgs::Pose &pose);
+
+class XArmForwardKinematics {
+public:
+  using Matrix4d = Eigen::Matrix4d;
+  static constexpr size_t N_JOINTS = 7;
+
+  Matrix4d forward_kinematics(const std::array<double, N_JOINTS>& joint_positions) const;
+
+private:
+  struct DHParams {
+    double d, a, alpha;
+  };
+
+  Matrix4d joint_transform(size_t i, double theta) const;
+};
