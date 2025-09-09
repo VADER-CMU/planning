@@ -9,9 +9,7 @@ endif()
 ## Find catkin macros and libraries
 
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
-find_package(yaml-cpp REQUIRED)
-COMPONENTS
+find_package(catkin REQUIRED COMPONENTS
     moveit_core
     moveit_visual_tools
     moveit_ros_planning
@@ -28,6 +26,7 @@ COMPONENTS
     roscpp
     roslib
 )
+find_package(yaml-cpp REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -63,6 +62,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES xarm_planner
  CATKIN_DEPENDS message_runtime geometry_msgs std_msgs vader_msgs moveit_visual_tools
+)
 
 include_directories(
 include
