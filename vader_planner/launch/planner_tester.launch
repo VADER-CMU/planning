@@ -1,0 +1,35 @@
+<launch>
+  <arg name="robot_dof" default="7" />
+  <arg name="add_gripper" default="false" />
+  <arg name="namespace" default="xarm"/>
+  <arg name="no_gui_plan" default="true" />
+  <arg name="robot_type" default="xarm"/>
+  <arg name="model1300" default="false" />
+  <arg name="num_trials" default="50" />
+
+<!-- 
+  <include file="$(find vader_planner)/launch/moveit_sim_configurations.launch">
+    <arg name="arm_dof" value="$(arg robot_dof)" />
+    <arg name="end_effector" value="_gripper" if="$(arg add_gripper)" />
+    <arg name="namespace" value="$(arg namespace)" />
+    <arg name="robot_type" value="$(arg robot_type)" />
+    <arg name="model1300" value="$(arg model1300)" />
+    <arg name="no_gui_plan" value="$(arg no_gui_plan)" />
+  </include> -->
+  <include file="$(find xarm7_moveit_config)/launch/moveit_rviz_common.launch">
+        <arg name="show_rviz" value="true"/>
+        <arg name="sim_gazebo" value="false"/>
+        <arg name="add_gripper" value="false"/>  
+        <arg name="NO_GUI_CTRL" default="false"/>
+        <arg name="pub_tf" value="true" />
+    </include>
+
+  <param name="robot_name" type="str" value="$(eval arg('robot_type') if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))"/>
+
+  <param name="num_trials" value="$(arg num_trials)" />
+
+  <group if="$(eval not arg('no_gui_plan'))">
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find xarm_planner)/launch/planner.rviz" />
+  </group>
+  
+</launch> 

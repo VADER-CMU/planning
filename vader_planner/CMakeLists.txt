@@ -9,8 +9,10 @@ endif()
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
+find_package(yaml-cpp REQUIRED)
 find_package(catkin REQUIRED
-COMPONENTS
+    COMPONENTS
     moveit_core
     moveit_visual_tools
     moveit_ros_planning
@@ -140,6 +142,8 @@ include_directories(
 include
 ${catkin_INCLUDE_DIRS}
 ${OMPL_INCLUDE_DIRS}
+${YAML_CPP_INCLUDE_DIR}
+
 )
 
 ## Declare a C++ library
@@ -279,6 +283,9 @@ target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
 add_executable(vader_cost_objective src/utils/vader_cost_objective.cpp)
 add_dependencies(vader_cost_objective ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_cost_objective ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
+add_executable(planner_tester src/planner_tester.cpp)
+add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(planner_tester ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 #-------------------------------------manual tests-------------------------------------#
 
@@ -310,6 +317,7 @@ install(TARGETS
   vader_svd_single_arm_planner
   gazebo_assassin
   vader_cost_objective
+  planner_tester
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
