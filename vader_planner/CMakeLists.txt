@@ -9,7 +9,7 @@ endif()
 ## Find catkin macros and libraries
 
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED
+find_package(catkin REQUIRED)
 find_package(yaml-cpp REQUIRED)
 COMPONENTS
     moveit_core
