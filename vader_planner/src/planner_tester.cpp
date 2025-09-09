@@ -72,10 +72,11 @@ struct RRTStarParams {
 
 struct PlanningMetrics {
     double planning_time;
-    double path_length;
+    double joint_space_path_length;
+    double task_space_path_length;
     bool success;
     
-    PlanningMetrics() : planning_time(0.0), path_length(0.0), success(false) {}
+    PlanningMetrics() : planning_time(0.0), joint_space_path_length(0.0), task_space_path_length(0.0), success(false) {}
 };
 
 class PlannerTester
@@ -639,7 +640,8 @@ PlanningMetrics PlannerTester::runSingleTest(const RRTStarParams& params)
     
     if (success)
     {
-        metrics.path_length = calculateJointPathLength(my_xarm_plan.trajectory_);
+        metrics.joint_space_path_length = calculateJointPathLength(my_xarm_plan.trajectory_);
+        metrics.task_space_path_length = calculateTaskPathLength(my_xarm_plan.trajectory_);
     }
     
     return metrics;
@@ -665,14 +667,15 @@ void PlannerTester::logResults(const RRTStarParams& params, const PlanningMetric
              << params.sample_rejection_attempts << ","
              << (params.use_rejection_sampling ? "true" : "false") << ","
              << metrics.planning_time << ","
-             << metrics.path_length << ","
+             << metrics.joint_space_path_length << ","
+             << metrics.task_space_path_length << ","
              << (metrics.success ? "true" : "false") << "\n";
     
     csv_file.flush();
     
-    ROS_INFO("Trial %d completed: success=%s, time=%.3fs, path_length=%.3f", 
+    ROS_INFO("Trial %d completed: success=%s, time=%.3fs, joint_space_path_length=%.3f, task_space_path_length=%.3f",
              trial_id, metrics.success ? "true" : "false", 
-             metrics.planning_time, metrics.path_length);
+             metrics.planning_time, metrics.joint_space_path_length, metrics.task_space_path_length);
 }
 
 void PlannerTester::runParameterTests(int num_trials)
@@ -698,7 +701,7 @@ void PlannerTester::runParameterTests(int num_trials)
     
     csv_file << "trial_id,timestamp,range,goal_bias,rewire_factor,max_nearest_neighbors,"
              << "delay_collision_checking,use_k_nearest,max_states,use_informed_sampling,"
-             << "sample_rejection_attempts,use_rejection_sampling,planning_time,path_length,success\n";
+             << "sample_rejection_attempts,use_rejection_sampling,planning_time,joint_space_path_length,task_space_path_length,success\n";
     
     ROS_INFO("Starting parameter testing with %d trials...", num_trials);
     
