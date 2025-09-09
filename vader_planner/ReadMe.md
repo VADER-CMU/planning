@@ -3,7 +3,7 @@
 
 For OMPL - RRT* params, refer to these links: [Link1](https://ompl.kavrakilab.org/RRTstar_8h_source.html) [Link2](https://ompl.kavrakilab.org/classompl_1_1geometric_1_1RRTstar.html) 
 # Planner Tester Overview
-
+To run the planner tester directly, use ./src/xarm_ros/vader_planner/scripts/run_planner_tester.sh
 ## What it does
 The planner tester is a ROS-based tool that evaluates robot arm motion planning algorithms by testing them in challenging obstacle environments.
 
