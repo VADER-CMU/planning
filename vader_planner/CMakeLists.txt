@@ -272,6 +272,10 @@ target_link_libraries(vader_svd_dual_arm_planner ${catkin_LIBRARIES})
 # add_dependencies(vader_single_arm_planner_pgtg ${${PROJECT_NAME}_EXPORTED_TARGETS})
 # target_link_libraries(vader_single_arm_planner_pgtg ${catkin_LIBRARIES})
 
+add_executable(vader_parallel_dual_planner src/vader_parallel_dual_planner.cpp)
+add_dependencies(vader_parallel_dual_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(vader_parallel_dual_planner ${catkin_LIBRARIES})
+
 add_executable(vader_svd_single_arm_planner src/vader_svd_single_arm_planner.cpp)
 add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
@@ -316,6 +320,7 @@ install(TARGETS
   collision_object_utils_tests
   vader_svd_dual_arm_planner
   vader_svd_single_arm_planner
+  vader_parallel_dual_planner
   gazebo_assassin
   vader_cost_objective
   planner_tester

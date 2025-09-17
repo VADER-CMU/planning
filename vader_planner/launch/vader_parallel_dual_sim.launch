@@ -1,0 +1,7 @@
+<launch>
+    <!-- Include the MoveIt RViz dual arm test setup launch file -->
+    <include file="$(find vader_planner)/launch/tests/setups/_moveit_rviz_dual_arm_test_setup.launch" />
+
+    <!-- Node for vader_parallel_dual_planner -->
+    <node name="vader_parallel_dual_planner" pkg="vader_planner" type="vader_parallel_dual_planner" output="screen" />
+</launch>
