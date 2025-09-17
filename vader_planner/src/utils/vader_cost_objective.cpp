@@ -123,8 +123,6 @@ public:
   VADERCustomObjective(const ompl::base::SpaceInformationPtr& si)
   : ompl::base::MultiOptimizationObjective(si)
     {    
-    //   ROS_INFO_NAMED("VADERCustomObjective", "Starting");
-
       addObjective(std::make_shared<ompl::base::PathLengthOptimizationObjective>(si), 1.0);
       addObjective(std::make_shared<XarmTaskSpaceOptimizationObjective>(si), 1.0);
     }
@@ -137,8 +135,6 @@ public:
       {
           c = ompl::base::Cost(c.value() + component.weight * (component.objective->motionCost(s1, s2).value()));
       }
-
-      // ROS_INFO_NAMED("VADERCustomObjective", "Motion cost: %f", c.value());
       return c;
     }
 };

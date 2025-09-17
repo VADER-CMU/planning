@@ -602,17 +602,17 @@ std::vector<RRTStarParams> PlannerTester::generateParameterCombinations(int num_
         RRTStarParams params;
         
       
-        params.range = range_values[range_indices[i]];
-        params.goal_bias = goal_bias_values[goal_bias_indices[i]];
-        params.rewire_factor = rewire_values[rewire_indices[i]];
-        params.max_nearest_neighbors = neighbor_values[neighbor_indices[i]];
+        // params.range = range_values[range_indices[i]];
+        // params.goal_bias = goal_bias_values[goal_bias_indices[i]];
+        // params.rewire_factor = rewire_values[rewire_indices[i]];
+        // params.max_nearest_neighbors = neighbor_values[neighbor_indices[i]];
        
-        params.delay_collision_checking = (i % 2 == 0);
-        params.use_k_nearest = (i % 2 == 0);
-        params.max_states = 1000 + (i % 5) * 200;
-        params.use_informed_sampling = (i % 3 == 0);
-        params.sample_rejection_attempts = 50 + (i % 10) * 10;
-        params.use_rejection_sampling = (i % 2 == 0);
+        // params.delay_collision_checking = (i % 2 == 0);
+        // params.use_k_nearest = (i % 2 == 0);
+        // params.max_states = 1000 + (i % 5) * 200;
+        // params.use_informed_sampling = (i % 3 == 0);
+        // params.sample_rejection_attempts = 50 + (i % 10) * 10;
+        // params.use_rejection_sampling = (i % 2 == 0);
         
         combinations.push_back(params);
     }
