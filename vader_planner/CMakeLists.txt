@@ -190,14 +190,16 @@ add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS
 target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
 
 add_executable(gazebo_assassin src/utils/gazebo_assassin.cpp)
-planner_tester
+add_executable(wall_planner_tester src/wall_planner_tester.cpp)
 add_executable(planner_tester src/planner_tester.cpp)
 add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(planner_tester ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+add_dependencies(wall_planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(wall_planner_tester ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 add_dependencies(gazebo_assassin ${${PROJECT_NAME}_EXPORTED_TARGETS})
-planner_tester
+
 target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
-planner_tester
+
 
 #-------------------------------------manual tests-------------------------------------#
 

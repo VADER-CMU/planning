@@ -34,7 +34,7 @@ testing:
     rewire_factor: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
     max_nearest_neighbors: [5, 10, 15, 20, 25, 30]
 logging:
-  csv_path: /root/catkin_ws/ompl_testing_results.csv
+  csv_path: /home/docker_ws/wall_planner_testing_results.csv
   include_timestamp: true
   include_planner_params: true
   include_trajectory_analysis: true

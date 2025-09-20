@@ -23,7 +23,7 @@
   <param name="num_trials" value="$(arg num_trials)" />
   
 
-  <node name="planner_tester" pkg="xarm_planner" type="planner_tester" output="screen">
+  <node name="wall_planner_tester" pkg="vader_planner" type="wall_planner_tester" output="screen">
     <param name="num_trials" value="$(arg num_trials)" />
   </node>
   
