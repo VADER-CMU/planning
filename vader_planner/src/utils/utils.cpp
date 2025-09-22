@@ -11,6 +11,7 @@
 
 //--------------------------------------------Moveit Collision Object Functions--------------------------------------------//
 
+
 moveit_msgs::CollisionObject add_moveit_collision_object(
     moveit::planning_interface::PlanningSceneInterface &planning_scene_interface,
     const std::string &object_id,
@@ -27,6 +28,15 @@ moveit_msgs::CollisionObject add_moveit_collision_object(
 
     planning_scene_interface.applyCollisionObject(collision_object);
     return collision_object;
+}
+
+void add_moveit_collision_object(
+    moveit::planning_interface::PlanningSceneInterface &planning_scene_interface,
+    moveit_msgs::CollisionObject &collision_object,
+    const std_msgs::ColorRGBA &object_color)
+{
+    collision_object.operation = moveit_msgs::CollisionObject::ADD;
+    planning_scene_interface.applyCollisionObject(collision_object, object_color);
 }
 
 void add_moveit_collision_object(

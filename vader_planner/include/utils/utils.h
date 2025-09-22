@@ -10,6 +10,21 @@
 #include <gazebo_msgs/DeleteModel.h>
 #include <vector>
 
+std_msgs::ColorRGBA PORTAL_ORANGE_COLOR() {
+    std_msgs::ColorRGBA color;
+    color.r = 1.0;
+    color.g = 93.0 / 255.0;
+    color.a = 0.2;
+    return color;
+}
+
+std_msgs::ColorRGBA PORTAL_BLUE_COLOR() {
+    std_msgs::ColorRGBA color;
+    color.g = 101.0 / 255.0;
+    color.b = 1.0;
+    color.a = 0.2;
+    return color;
+}
 //--------------------------------------------Moveit Collision Object Functions--------------------------------------------//
 
 moveit_msgs::CollisionObject add_moveit_collision_object(

@@ -274,7 +274,7 @@ target_link_libraries(vader_svd_dual_arm_planner ${catkin_LIBRARIES})
 
 add_executable(vader_parallel_dual_planner src/vader_parallel_dual_planner.cpp)
 add_dependencies(vader_parallel_dual_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_parallel_dual_planner ${catkin_LIBRARIES})
+target_link_libraries(vader_parallel_dual_planner ${catkin_LIBRARIES} utils)
 
 add_executable(vader_svd_single_arm_planner src/vader_svd_single_arm_planner.cpp)
 add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})

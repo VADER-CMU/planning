@@ -40,6 +40,12 @@
 #include <vader_msgs/GoHomeRequest.h>
 #include <vader_msgs/SimulationPepperSequence.h>
 
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/planning_scene/planning_scene.h>
+#include <moveit/collision_detection/collision_tools.h>
+#include <geometric_shapes/shape_operations.h>
+#include "utils/utils.h"
+
 #include <iostream>
 
 #define SPINNER_THREAD_NUM 2
@@ -210,6 +216,96 @@ public:
         ros::Duration(5.0).sleep(); // wait for gripper to finish
     }
 
+    void sharedWorkspaceDemo(double divide_workspace_y) {
+        moveit_msgs::CollisionObject left_workspace;
+        left_workspace.id = "left_workspace";
+        left_workspace.header.frame_id = "world";
+        shape_msgs::SolidPrimitive left_primitive;
+        left_primitive.type = left_primitive.BOX;
+        left_primitive.dimensions.resize(3);
+        left_primitive.dimensions[0] = 0.4; // x length
+        left_primitive.dimensions[1] = divide_workspace_y;                // y length
+        left_primitive.dimensions[2] = 0.5;                // z length
+        left_workspace.primitives.push_back(left_primitive);
+
+        geometry_msgs::Pose left_pose;
+        left_pose.position.x = 0.2;
+        left_pose.position.y = divide_workspace_y / 2.0;
+        left_pose.position.z = 0.25;
+        left_pose.orientation.w = 1.0;
+        left_workspace.primitive_poses.push_back(left_pose);
+        left_workspace.operation = left_workspace.ADD;
+
+        moveit_msgs::CollisionObject right_workspace;
+        right_workspace.id = "right_workspace";
+        right_workspace.header.frame_id = "world";
+        shape_msgs::SolidPrimitive right_primitive;
+        right_primitive.type = right_primitive.BOX;
+        right_primitive.dimensions.resize(3);
+        right_primitive.dimensions[0] = 0.4; // x length
+        right_primitive.dimensions[1] = 0.5 - divide_workspace_y;                      // y length
+        right_primitive.dimensions[2] = 0.5;                      // z length
+        right_workspace.primitives.push_back(right_primitive);
+
+        geometry_msgs::Pose right_pose;
+        right_pose.position.x = 0.2;
+        right_pose.position.y = divide_workspace_y + (0.5 - divide_workspace_y) / 2.0;
+        right_pose.position.z = 0.25;
+        right_pose.orientation.w = 1.0;
+        right_workspace.primitive_poses.push_back(right_pose);
+        right_workspace.operation = right_workspace.ADD;
+
+        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+
+        planning_scene_interface.applyCollisionObject(left_workspace, PORTAL_ORANGE_COLOR());
+        planning_scene_interface.applyCollisionObject(right_workspace, PORTAL_BLUE_COLOR());
+
+
+        //get planning scene
+        // --- 2. Set up PlanningSceneMonitor to modify ACM ---
+        // Assumes "robot_description" param is available (standard in MoveIt RViz demo)
+        planning_scene_monitor::PlanningSceneMonitorPtr psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
+
+        if (!psm->getPlanningScene())
+        {
+            ROS_ERROR("PlanningSceneMonitor not properly initialized.");
+        }
+
+        std::vector<std::string> link_names_suffix = {"link1", "link2", "link3", "link4", "link5", "link6", "link7", "link_base", "link_eef"};
+
+        // Lock the scene for writing
+        {
+            planning_scene_monitor::LockedPlanningSceneRW scene(psm);
+            collision_detection::AllowedCollisionMatrix& acm = scene->getAllowedCollisionMatrixNonConst();
+
+            // Allow collision between box and a specific link (e.g. "wrist_3_link")
+            for (const auto& link_name_suffix : link_names_suffix) {
+                std::string gripper_link_name = "L_" + link_name_suffix;
+                std::string cutter_link_name = "R_" + link_name_suffix;
+                acm.setEntry("left_workspace", gripper_link_name, true);
+                acm.setEntry("right_workspace", cutter_link_name, true);
+            }
+            // Optionally: allow collision with all robot links
+            // acm.setEntry("box1", true);
+            scene->getCurrentStateNonConst().update(); 
+            
+            // acm.print(std::cout);
+            psm->triggerSceneUpdateEvent(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE);
+
+            moveit_msgs::PlanningScene ps_msg;
+            scene->getPlanningSceneMsg(ps_msg);
+            ps_msg.is_diff = true;
+            ros::NodeHandle nh;
+            ros::Publisher planning_scene_diff_pub =
+                nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+            ros::Duration(1.0).sleep(); // give publisher time to connect
+            planning_scene_diff_pub.publish(ps_msg);
+        }
+
+        // --- 3. Trigger update so RViz + planners see the change ---
+        // psm->requestPlanningSceneState();
+    }
+
 private:
     
     ros::NodeHandle node_handle;
@@ -230,34 +326,38 @@ int main(int argc, char **argv)
 
     plannerServer.start();
 
-    ros::Duration(10).sleep();
+    ros::Duration(5).sleep();
 
-    moveit_msgs::CollisionObject collision_object;
-    collision_object.id = "box1";
-    collision_object.header.frame_id = "world";
-    shape_msgs::SolidPrimitive primitive;
-    primitive.type = primitive.BOX;
-    primitive.dimensions.resize(3);
-    primitive.dimensions[0] = 0.2;
-    primitive.dimensions[1] = 0.2;
-    primitive.dimensions[2] = 0.2;
-    collision_object.primitives.push_back(primitive);
+    plannerServer.sharedWorkspaceDemo(0.2);
+    // moveit_msgs::CollisionObject collision_object;
+    // collision_object.id = "box1";
+    // collision_object.header.frame_id = "world";
+    // shape_msgs::SolidPrimitive primitive;
+    // primitive.type = primitive.BOX;
+    // primitive.dimensions.resize(3);
+    // primitive.dimensions[0] = 0.2;
+    // primitive.dimensions[1] = 0.2;
+    // primitive.dimensions[2] = 0.2;
+    // collision_object.primitives.push_back(primitive);
 
 
-    geometry_msgs::Pose box_pose;
-    box_pose.position.x = 0.4;
-    box_pose.position.y = 0.2;
-    box_pose.position.z = 0.1;
-    box_pose.orientation.w = 1.0;
-    collision_object.primitive_poses.push_back(box_pose);
-    collision_object.operation = collision_object.ADD;
+    // geometry_msgs::Pose box_pose;
+    // box_pose.position.x = 0.4;
+    // box_pose.position.y = 0.2;
+    // box_pose.position.z = 0.1;
+    // box_pose.orientation.w = 1.0;
+    // collision_object.primitive_poses.push_back(box_pose);
+    // collision_object.operation = collision_object.ADD;
 
-    std_msgs::ColorRGBA object_color;
-    object_color.r = 1.0;
-    object_color.a = 1.0;
+    // std_msgs::ColorRGBA object_color;
+    // object_color.r = 1.0;
+    // object_color.a = .2;
+    
+    // std_msgs::ColorRGBA object_color2;
+    
 
-    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-    planning_scene_interface.applyCollisionObject(collision_object, object_color);
+    // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+    // planning_scene_interface.applyCollisionObject(collision_object, object_color);
 
     // plannerServer.parallelPlanExecuteDemo();
     ros::waitForShutdown();
