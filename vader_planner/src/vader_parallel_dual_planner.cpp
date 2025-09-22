@@ -46,6 +46,8 @@
 #include <geometric_shapes/shape_operations.h>
 #include "utils/utils.h"
 
+#include <thread>
+#include <future>
 #include <iostream>
 
 #define SPINNER_THREAD_NUM 2
@@ -191,39 +193,30 @@ public:
     }
 
     void parallelPlanExecuteDemo(){
+        ROS_WARN_NAMED("vader_planner", "Starting parallel planning and execution demo in ten seconds...");
+
         ros::Duration(10.0).sleep();
-        ROS_WARN_NAMED("vader_planner", "Starting parallel planning and execution demo");
-
         // Define target poses for gripper and cutter
-        geometry_msgs::Pose gripper_target_pose;
-        gripper_target_pose.position.x = 0.4;
-        gripper_target_pose.position.y = 0.2;
-        gripper_target_pose.position.z = 0.3;
-        gripper_target_pose.orientation.w = 1.0;
-
-        geometry_msgs::Pose cutter_target_pose;
-        cutter_target_pose.position.x = 0.1;
-        cutter_target_pose.position.y = 0.3;
-        cutter_target_pose.position.z = 0.6;
-        cutter_target_pose.orientation.w = 1.0;
-
+        geometry_msgs::Pose gripper_target_pose = makePose(0.5, 0.25, 0.4, QUAT_TOWARD_PLANT());
+        geometry_msgs::Pose cutter_target_pose = makePose(0.5, 0.5, 0.4, QUAT_TOWARD_PLANT());
 
         // Plan for gripper
         auto gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
 
-
         ROS_WARN_NAMED("vader_planner", "Gripper plan computed, executing asynchronously.");
-        gripper_planner_.execAsync(gripper_plan);
+        
+        auto cutter_plan_future = std::async(&VADERCutterPlanner::planRRT, &cutter_planner_, cutter_target_pose);
+        std::thread gripper_exec_thread([&]() {
+            gripper_planner_.execSync(gripper_plan);
+            ROS_WARN_NAMED("vader_planner", "Gripper movement finished.");
+        });
+        auto cutter_plan = cutter_plan_future.get();
+        gripper_exec_thread.join();
 
-        // Plan for cutter (while gripper is executing)
-        auto cutter_plan = cutter_planner_.planRRT(gripper_target_pose);
-        ROS_WARN_NAMED("vader_planner", "Cutter plan computed, waiting for gripper to finish movement.");
         cutter_planner_.execSync(cutter_plan);
-
-        ros::Duration(5.0).sleep(); // wait for gripper to finish
     }
 
-    void sharedWorkspaceDemo(double divide_workspace_y) {
+    void setUpSharedWorkspaceCollision(double divide_workspace_y) {
         moveit_msgs::CollisionObject left_workspace;
         left_workspace.id = "left_workspace";
         left_workspace.header.frame_id = "world";
@@ -291,38 +284,10 @@ int main(int argc, char **argv)
 
     ros::Duration(5).sleep();
 
-    plannerServer.sharedWorkspaceDemo(0.4);
-    // moveit_msgs::CollisionObject collision_object;
-    // collision_object.id = "box1";
-    // collision_object.header.frame_id = "world";
-    // shape_msgs::SolidPrimitive primitive;
-    // primitive.type = primitive.BOX;
-    // primitive.dimensions.resize(3);
-    // primitive.dimensions[0] = 0.2;
-    // primitive.dimensions[1] = 0.2;
-    // primitive.dimensions[2] = 0.2;
-    // collision_object.primitives.push_back(primitive);
+    double divide_workspace_y = 0.375;
 
-
-    // geometry_msgs::Pose box_pose;
-    // box_pose.position.x = 0.4;
-    // box_pose.position.y = 0.2;
-    // box_pose.position.z = 0.1;
-    // box_pose.orientation.w = 1.0;
-    // collision_object.primitive_poses.push_back(box_pose);
-    // collision_object.operation = collision_object.ADD;
-
-    // std_msgs::ColorRGBA object_color;
-    // object_color.r = 1.0;
-    // object_color.a = .2;
-    
-    // std_msgs::ColorRGBA object_color2;
-    
-
-    // moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-    // planning_scene_interface.applyCollisionObject(collision_object, object_color);
-
-    // plannerServer.parallelPlanExecuteDemo();
+    plannerServer.setUpSharedWorkspaceCollision(divide_workspace_y);
+    plannerServer.parallelPlanExecuteDemo();
     ros::waitForShutdown();
     return 0;
 }
