@@ -229,7 +229,37 @@ int main(int argc, char **argv)
     VADERPlannerServer plannerServer;
 
     plannerServer.start();
-    plannerServer.parallelPlanExecuteDemo();
+
+    ros::Duration(10).sleep();
+
+    moveit_msgs::CollisionObject collision_object;
+    collision_object.id = "box1";
+    collision_object.header.frame_id = "world";
+    shape_msgs::SolidPrimitive primitive;
+    primitive.type = primitive.BOX;
+    primitive.dimensions.resize(3);
+    primitive.dimensions[0] = 0.2;
+    primitive.dimensions[1] = 0.2;
+    primitive.dimensions[2] = 0.2;
+    collision_object.primitives.push_back(primitive);
+
+
+    geometry_msgs::Pose box_pose;
+    box_pose.position.x = 0.4;
+    box_pose.position.y = 0.2;
+    box_pose.position.z = 0.1;
+    box_pose.orientation.w = 1.0;
+    collision_object.primitive_poses.push_back(box_pose);
+    collision_object.operation = collision_object.ADD;
+
+    std_msgs::ColorRGBA object_color;
+    object_color.r = 1.0;
+    object_color.a = 1.0;
+
+    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+    planning_scene_interface.applyCollisionObject(collision_object, object_color);
+
+    // plannerServer.parallelPlanExecuteDemo();
     ros::waitForShutdown();
     return 0;
 }

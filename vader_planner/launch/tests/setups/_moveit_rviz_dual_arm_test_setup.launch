@@ -30,7 +30,7 @@
   <arg name="sensors_3d" default="false" />
   <arg name="jnt_stat_pub_rate" default="10" />
   <!-- only use in xarm_planner -->
-  <arg name="no_gui_plan" default="true" />
+  <arg name="no_gui_plan" default="false" />
 
   <arg name="kinematics_suffix_1" default="" />
   <arg name="kinematics_suffix_2" default="" />
