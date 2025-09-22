@@ -2,15 +2,20 @@
 
 
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
+
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/planning_scene/planning_scene.h>
+
 #include <moveit_msgs/CollisionObject.h>
 #include <shape_msgs/SolidPrimitive.h>
 #include <geometry_msgs/Pose.h>
 #include <string>
 #include <gazebo_msgs/SpawnModel.h>
 #include <gazebo_msgs/DeleteModel.h>
+
 #include <vector>
 
-std_msgs::ColorRGBA PORTAL_ORANGE_COLOR() {
+std_msgs::ColorRGBA COLOR_ORANGE_TRANSLUCENT() {
     std_msgs::ColorRGBA color;
     color.r = 1.0;
     color.g = 93.0 / 255.0;
@@ -18,13 +23,95 @@ std_msgs::ColorRGBA PORTAL_ORANGE_COLOR() {
     return color;
 }
 
-std_msgs::ColorRGBA PORTAL_BLUE_COLOR() {
+std_msgs::ColorRGBA COLOR_BLUE_TRANSLUCENT() {
     std_msgs::ColorRGBA color;
     color.g = 101.0 / 255.0;
     color.b = 1.0;
     color.a = 0.2;
     return color;
 }
+
+inline geometry_msgs::Quaternion QUAT_UP() {
+    geometry_msgs::Quaternion q;
+    q.x = 0.0;
+    q.y = 0.0;
+    q.z = 0.0;
+    q.w = 1.0;
+    return q;
+}
+
+inline geometry_msgs::Quaternion QUAT_IDENTITY() {
+    geometry_msgs::Quaternion q;
+    q.x = 0.0;
+    q.y = 0.0;
+    q.z = 0.0;
+    q.w = 1.0;
+    return q;
+}
+
+inline geometry_msgs::Quaternion QUAT_DOWN() {
+    geometry_msgs::Quaternion q;
+    q.x = 1.0;
+    q.y = 0.0;
+    q.z = 0.0;
+    q.w = 0.0;
+    return q;
+}
+
+inline geometry_msgs::Quaternion QUAT_TOWARD_PLANT() {
+    geometry_msgs::Quaternion q;
+    q.x = std::sqrt(2.0) / 2.0;
+    q.y = 0.0;
+    q.z = std::sqrt(2.0) / 2.0;
+    q.w = 0.0;
+    return q;
+}
+
+inline geometry_msgs::Pose makePose(double x, double y, double z, const geometry_msgs::Quaternion& quat) {
+    geometry_msgs::Pose pose;
+    pose.position.x = x;
+    pose.position.y = y;
+    pose.position.z = z;
+    pose.orientation = quat;
+    return pose;
+}
+
+inline shape_msgs::SolidPrimitive makeBoxPrimitive(double x, double y, double z) {
+    shape_msgs::SolidPrimitive box;
+    box.type = shape_msgs::SolidPrimitive::BOX;
+    box.dimensions.resize(3);
+    box.dimensions[shape_msgs::SolidPrimitive::BOX_X] = x;
+    box.dimensions[shape_msgs::SolidPrimitive::BOX_Y] = y;
+    box.dimensions[shape_msgs::SolidPrimitive::BOX_Z] = z;
+    return box;
+}
+
+inline void setACMEntries(
+    planning_scene_monitor::PlanningSceneMonitorPtr& psm,
+    ros::Publisher& planning_scene_diff_pub,
+    const std::vector<std::pair<std::string, std::string>>& allowed_entries)
+{
+    if (!psm->getPlanningScene())
+    {
+        ROS_ERROR("PlanningSceneMonitor not properly initialized.");
+        return;
+    }
+    planning_scene_monitor::LockedPlanningSceneRW scene(psm);
+    collision_detection::AllowedCollisionMatrix& acm = scene->getAllowedCollisionMatrixNonConst();
+
+    for (const auto& entry : allowed_entries) {
+        acm.setEntry(entry.first, entry.second, true);
+    }
+
+    scene->getCurrentStateNonConst().update();
+    psm->triggerSceneUpdateEvent(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE);
+
+    moveit_msgs::PlanningScene ps_msg;
+    scene->getPlanningSceneMsg(ps_msg);
+    ps_msg.is_diff = true;
+    planning_scene_diff_pub.publish(ps_msg);
+}
+
 //--------------------------------------------Moveit Collision Object Functions--------------------------------------------//
 
 moveit_msgs::CollisionObject add_moveit_collision_object(

@@ -55,15 +55,15 @@ const double jump_threshold = 0.0;
 const double eef_step = 0.005;
 const double maxV_scale_factor = 0.3;
 
-const std::string PLAN_GROUP_GRIPPER_PREFIX = "L_xarm7";
-const std::string PLAN_GROUP_CUTTER_PREFIX = "R_xarm7";
+const std::string GRIPPER_MOVE_GROUP = "L_xarm7";
+const std::string CUTTER_MOVE_GROUP = "R_xarm7";
 
 namespace rvt = rviz_visual_tools;
 
 class VADERGripperPlanner {
 public:
     VADERGripperPlanner()
-        : move_group_(PLAN_GROUP_GRIPPER_PREFIX) {
+        : move_group_(GRIPPER_MOVE_GROUP) {
             ROS_INFO_NAMED("vader_planner", "Initialized VADER Gripper Planner");
         }
 
@@ -103,7 +103,7 @@ private:
 class VADERCutterPlanner {
 public:
     VADERCutterPlanner()
-        : move_group_(PLAN_GROUP_CUTTER_PREFIX) {
+        : move_group_(CUTTER_MOVE_GROUP) {
             ROS_INFO_NAMED("vader_planner", "Initialized VADER Cutter Planner");
         }
 
@@ -146,6 +146,13 @@ public:
           gripper_planner_(),
           cutter_planner_() {
         // Initialize ROS services, subscribers, publishers here
+        
+        planning_scene_diff_pub =
+            node_handle.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+
+        psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
+
+        ros::Duration(1.0).sleep(); // give publisher time to connect
         ROS_INFO_NAMED("vader_planner", "VADER Dual Planner Server Initialized");
     }
 
@@ -220,101 +227,57 @@ public:
         moveit_msgs::CollisionObject left_workspace;
         left_workspace.id = "left_workspace";
         left_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive left_primitive;
-        left_primitive.type = left_primitive.BOX;
-        left_primitive.dimensions.resize(3);
-        left_primitive.dimensions[0] = 0.4; // x length
-        left_primitive.dimensions[1] = divide_workspace_y;                // y length
-        left_primitive.dimensions[2] = 0.5;                // z length
+        shape_msgs::SolidPrimitive left_primitive = makeBoxPrimitive(0.4, divide_workspace_y, 0.5);
         left_workspace.primitives.push_back(left_primitive);
 
-        geometry_msgs::Pose left_pose;
-        left_pose.position.x = 0.2;
-        left_pose.position.y = divide_workspace_y / 2.0;
-        left_pose.position.z = 0.25;
-        left_pose.orientation.w = 1.0;
+        geometry_msgs::Pose left_pose = makePose(0.2, divide_workspace_y / 2.0, 0.25, QUAT_IDENTITY());
         left_workspace.primitive_poses.push_back(left_pose);
         left_workspace.operation = left_workspace.ADD;
 
         moveit_msgs::CollisionObject right_workspace;
         right_workspace.id = "right_workspace";
         right_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive right_primitive;
-        right_primitive.type = right_primitive.BOX;
-        right_primitive.dimensions.resize(3);
-        right_primitive.dimensions[0] = 0.4; // x length
-        right_primitive.dimensions[1] = 0.5 - divide_workspace_y;                      // y length
-        right_primitive.dimensions[2] = 0.5;                      // z length
+        shape_msgs::SolidPrimitive right_primitive = makeBoxPrimitive(0.4, 0.5 - divide_workspace_y, 0.5);
         right_workspace.primitives.push_back(right_primitive);
 
-        geometry_msgs::Pose right_pose;
-        right_pose.position.x = 0.2;
-        right_pose.position.y = divide_workspace_y + (0.5 - divide_workspace_y) / 2.0;
-        right_pose.position.z = 0.25;
-        right_pose.orientation.w = 1.0;
+        geometry_msgs::Pose right_pose = makePose(0.2, divide_workspace_y + (0.5 - divide_workspace_y) / 2.0, 0.25, QUAT_IDENTITY());
         right_workspace.primitive_poses.push_back(right_pose);
         right_workspace.operation = right_workspace.ADD;
 
         moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
-        planning_scene_interface.applyCollisionObject(left_workspace, PORTAL_ORANGE_COLOR());
-        planning_scene_interface.applyCollisionObject(right_workspace, PORTAL_BLUE_COLOR());
+        planning_scene_interface.applyCollisionObject(left_workspace, COLOR_ORANGE_TRANSLUCENT());
+        planning_scene_interface.applyCollisionObject(right_workspace, COLOR_BLUE_TRANSLUCENT());
 
+        
 
-        //get planning scene
-        // --- 2. Set up PlanningSceneMonitor to modify ACM ---
-        // Assumes "robot_description" param is available (standard in MoveIt RViz demo)
-        planning_scene_monitor::PlanningSceneMonitorPtr psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
-
-        if (!psm->getPlanningScene())
-        {
-            ROS_ERROR("PlanningSceneMonitor not properly initialized.");
+        // Allow collision between box and a specific link (e.g. "wrist_3_link")
+        std::vector<std::pair<std::string, std::string>> allowed_entries;
+        for (const auto& link_name_suffix : LINK_SUFFIXES) {
+            std::string gripper_link_name = "L_" + link_name_suffix;
+            std::string cutter_link_name = "R_" + link_name_suffix;
+            allowed_entries.emplace_back("left_workspace", gripper_link_name);
+            allowed_entries.emplace_back("right_workspace", cutter_link_name);
         }
 
-        std::vector<std::string> link_names_suffix = {"link1", "link2", "link3", "link4", "link5", "link6", "link7", "link_base", "link_eef"};
-
-        // Lock the scene for writing
-        {
-            planning_scene_monitor::LockedPlanningSceneRW scene(psm);
-            collision_detection::AllowedCollisionMatrix& acm = scene->getAllowedCollisionMatrixNonConst();
-
-            // Allow collision between box and a specific link (e.g. "wrist_3_link")
-            for (const auto& link_name_suffix : link_names_suffix) {
-                std::string gripper_link_name = "L_" + link_name_suffix;
-                std::string cutter_link_name = "R_" + link_name_suffix;
-                acm.setEntry("left_workspace", gripper_link_name, true);
-                acm.setEntry("right_workspace", cutter_link_name, true);
-            }
-            // Optionally: allow collision with all robot links
-            // acm.setEntry("box1", true);
-            scene->getCurrentStateNonConst().update(); 
-            
-            // acm.print(std::cout);
-            psm->triggerSceneUpdateEvent(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE);
-
-            moveit_msgs::PlanningScene ps_msg;
-            scene->getPlanningSceneMsg(ps_msg);
-            ps_msg.is_diff = true;
-            ros::NodeHandle nh;
-            ros::Publisher planning_scene_diff_pub =
-                nh.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
-            ros::Duration(1.0).sleep(); // give publisher time to connect
-            planning_scene_diff_pub.publish(ps_msg);
-        }
-
-        // --- 3. Trigger update so RViz + planners see the change ---
-        // psm->requestPlanningSceneState();
+        setACMEntries(psm, planning_scene_diff_pub, allowed_entries);
+        ROS_WARN_NAMED("vader_planner", "Shared workspace demo collision objs setup complete.");
     }
 
 private:
     
     ros::NodeHandle node_handle;
+    ros::Publisher planning_scene_diff_pub;
+    planning_scene_monitor::PlanningSceneMonitorPtr psm;
     VADERGripperPlanner gripper_planner_;
     VADERCutterPlanner cutter_planner_;
     ros::AsyncSpinner spinner;
 
     std::string GRIPPER_PLANNING_FRAME;
     std::string CUTTER_PLANNING_FRAME;
+
+    const std::vector<std::string> LINK_SUFFIXES = {"link1", "link2", "link3", "link4", "link5", "link6", "link7", "link_base", "link_eef"};
+
 };
 
 
@@ -328,7 +291,7 @@ int main(int argc, char **argv)
 
     ros::Duration(5).sleep();
 
-    plannerServer.sharedWorkspaceDemo(0.2);
+    plannerServer.sharedWorkspaceDemo(0.4);
     // moveit_msgs::CollisionObject collision_object;
     // collision_object.id = "box1";
     // collision_object.header.frame_id = "world";
