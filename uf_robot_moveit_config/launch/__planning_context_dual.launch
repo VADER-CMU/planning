@@ -18,6 +18,10 @@
   <arg name="kinematics_suffix_1" default=""/>
   <arg name="kinematics_suffix_2" default=""/>
 
+  <arg name="arm_spacing" default="0.5"/>
+  <arg name="bin_xyz" default="0.0 -0.3 0.0"/>
+  <arg name="_bin_xyz" value="'$(arg bin_xyz)'" />
+  <arg name="horizontal_mount_arms" default="false"/>
   <!-- The name of the parameter under which the URDF is loaded -->
   <arg name="robot_description" default="robot_description"/>
   
@@ -45,9 +49,7 @@
       robot_type_2:=$(arg robot_type) 
       robot_sn_1:=$(arg robot_sn)
       robot_sn_2:=$(arg robot_sn)
-      limited:=$(arg limited)      
-      kinematics_suffix_1:=$(arg kinematics_suffix_1)      
-      kinematics_suffix_2:=$(arg kinematics_suffix_2)      
+      limited:=$(arg limited)        
       model1300_1:=$(arg model1300)
       model1300_2:=$(arg model1300)
       velocity_control:=$(arg velocity_control)
@@ -62,32 +64,9 @@
       add_vader_gripper_2:=false
       add_vader_cutter_1:=false
       add_vader_cutter_2:=$(arg add_vader_eef)
-      add_vacuum_gripper_1:=$(arg add_vacuum_gripper)
-      add_vacuum_gripper_2:=$(arg add_vacuum_gripper)
-      add_other_geometry_1:=$(arg add_other_geometry)
-      add_other_geometry_2:=$(arg add_other_geometry)
-      geometry_type_1:=$(arg geometry_type)
-      geometry_type_2:=$(arg geometry_type)
-      geometry_mass_1:=$(arg geometry_mass)
-      geometry_mass_2:=$(arg geometry_mass)
-      geometry_height_1:=$(arg geometry_height)
-      geometry_height_2:=$(arg geometry_height)
-      geometry_radius_1:=$(arg geometry_radius)
-      geometry_radius_2:=$(arg geometry_radius)
-      geometry_length_1:=$(arg geometry_length)
-      geometry_length_2:=$(arg geometry_length)
-      geometry_width_1:=$(arg geometry_width)
-      geometry_width_2:=$(arg geometry_width)
-      geometry_mesh_filename_1:=$(arg geometry_mesh_filename)
-      geometry_mesh_filename_2:=$(arg geometry_mesh_filename)
-      geometry_mesh_origin_xyz_1:=$(arg geometry_mesh_origin_xyz)
-      geometry_mesh_origin_xyz_2:=$(arg geometry_mesh_origin_xyz)
-      geometry_mesh_origin_rpy_1:=$(arg geometry_mesh_origin_rpy)
-      geometry_mesh_origin_rpy_2:=$(arg geometry_mesh_origin_rpy)
-      geometry_mesh_tcp_xyz_1:=$(arg geometry_mesh_tcp_xyz)
-      geometry_mesh_tcp_xyz_2:=$(arg geometry_mesh_tcp_xyz)
-      geometry_mesh_tcp_rpy_1:=$(arg geometry_mesh_tcp_rpy)
-      geometry_mesh_tcp_rpy_2:=$(arg geometry_mesh_tcp_rpy)
+      bin_xyz:=$(arg _bin_xyz)
+      arm_spacing:=$(arg arm_spacing)
+      horizontal_mount_arms:=$(arg horizontal_mount_arms)
     "/>
 
   <param if="$(arg load_robot_description)" name="$(arg robot_description)_semantic" 

@@ -7,8 +7,10 @@
 #include <gazebo_msgs/SpawnModel.h>
 #include <gazebo_msgs/DeleteModel.h>
 #include <vector>
+#include "utils/utils.h"
 
 //--------------------------------------------Moveit Collision Object Functions--------------------------------------------//
+
 
 moveit_msgs::CollisionObject add_moveit_collision_object(
     moveit::planning_interface::PlanningSceneInterface &planning_scene_interface,
@@ -26,6 +28,15 @@ moveit_msgs::CollisionObject add_moveit_collision_object(
 
     planning_scene_interface.applyCollisionObject(collision_object);
     return collision_object;
+}
+
+void add_moveit_collision_object(
+    moveit::planning_interface::PlanningSceneInterface &planning_scene_interface,
+    moveit_msgs::CollisionObject &collision_object,
+    const std_msgs::ColorRGBA &object_color)
+{
+    collision_object.operation = moveit_msgs::CollisionObject::ADD;
+    planning_scene_interface.applyCollisionObject(collision_object, object_color);
 }
 
 void add_moveit_collision_object(
@@ -61,7 +72,7 @@ void remove_moveit_collision_object(
 //--------------------------------------------Gazebo Collision Object Functions--------------------------------------------//
 
 
-std::string generateBoxURDF(const std::string &model_name, const std::vector<double> &sizes, const bool is_static = true)
+std::string generateBoxURDF(const std::string &model_name, const std::vector<double> &sizes, const bool is_static)
 {
     assert (sizes.size() == 3 && "Sizes vector must contain elements for x, y, and z dimensions.");
     std::ostringstream urdf;
@@ -182,4 +193,33 @@ void addTwinBoxCollisionObject(
     spawn_request.reference_frame = reference_frame;
 
     gazebo_msgs::SpawnModel::Response spawn_response = spawnGazeboCollisionObject(spawn_client, spawn_request);
+}
+
+
+/**
+ * @brief Computes the forward kinematics for the XArm robot.
+ * 
+ * Calculates the end-effector transformation matrix given the joint positions.
+ * 
+ * @param joint_positions Array of joint angles (in radians) for each of the 7 joints.
+ * @return Matrix4d Homogeneous transformation matrix representing the end-effector pose.
+ */
+XArmForwardKinematics::Matrix4d XArmForwardKinematics::forward_kinematics(const std::array<double, N_JOINTS>& joint_positions) const {
+    XArmForwardKinematics::Matrix4d T = Matrix4d::Identity();
+    for (size_t i = 0; i < N_JOINTS; ++i) {
+        T = T * joint_transform(i, joint_positions[i]);
+    }
+    return T;
+}
+
+XArmForwardKinematics::Matrix4d XArmForwardKinematics::joint_transform(size_t i, double theta) const {
+    double ct = std::cos(theta);
+    double st = std::sin(theta);
+
+    XArmForwardKinematics::Matrix4d T;
+    T << ct, -st*cos_alpha[i],  st*sin_alpha[i], dh[i].a*ct,
+            st,  ct*cos_alpha[i], -ct*sin_alpha[i], dh[i].a*st,
+            0,       sin_alpha[i],      cos_alpha[i],    dh[i].d,
+            0,           0,                 0,           1;
+    return T;
 }

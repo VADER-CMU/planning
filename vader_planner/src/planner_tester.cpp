@@ -21,6 +21,12 @@
 #include <algorithm>
 #include <unistd.h>
 
+#include <Eigen/Dense>
+
+#include "utils/utils.h"
+
+// #include "utils/vader_cost_objective.h"
+
 #define SPINNER_THREAD_NUM 2
 
 /* Used for Cartesian path computation, please modify as needed: */
@@ -66,10 +72,11 @@ struct RRTStarParams {
 
 struct PlanningMetrics {
     double planning_time;
-    double path_length;
+    double joint_space_path_length;
+    double task_space_path_length;
     bool success;
     
-    PlanningMetrics() : planning_time(0.0), path_length(0.0), success(false) {}
+    PlanningMetrics() : planning_time(0.0), joint_space_path_length(0.0), task_space_path_length(0.0), success(false) {}
 };
 
 class PlannerTester
@@ -100,6 +107,8 @@ class PlannerTester
     ros::Subscriber exec_plan_sub; 
     ros::ServiceServer exec_plan_srv; 
 
+    std::shared_ptr<XArmForwardKinematics> xarm_fk_ptr;
+
 
     std::mt19937 rng;
     std::vector<BlockInfo> generated_blocks;
@@ -116,8 +125,8 @@ class PlannerTester
     void updateYAMLConfig(const RRTStarParams& params);
     bool loadYAMLConfig();
     
-    
-    double calculatePathLength(const moveit_msgs::RobotTrajectory& trajectory);
+    double calculateTaskPathLength(const moveit_msgs::RobotTrajectory& trajectory);
+    double calculateJointPathLength(const moveit_msgs::RobotTrajectory& trajectory);
 
     void init();
     void analyze_trajectory(const moveit_msgs::RobotTrajectory& trajectory, const std::string& plan_type);
@@ -165,6 +174,8 @@ void PlannerTester::init()
   if (!loadYAMLConfig()) {
     ROS_WARN("Failed to load YAML config from all paths, using default parameters");
   }
+
+  xarm_fk_ptr = std::make_shared<XArmForwardKinematics>();
   
   create_ground_plane();
   
@@ -491,7 +502,7 @@ void PlannerTester::updateYAMLConfig(const RRTStarParams& params)
     }
 }
 
-double PlannerTester::calculatePathLength(const moveit_msgs::RobotTrajectory& trajectory)
+double PlannerTester::calculateJointPathLength(const moveit_msgs::RobotTrajectory& trajectory)
 {
     if(trajectory.joint_trajectory.points.empty())
         return 0.0;
@@ -510,6 +521,40 @@ double PlannerTester::calculatePathLength(const moveit_msgs::RobotTrajectory& tr
             segment_length += joint_diff * joint_diff;
         }
         total_length += sqrt(segment_length);
+    }
+    
+    return total_length;
+}
+
+double PlannerTester::calculateTaskPathLength(const moveit_msgs::RobotTrajectory& trajectory)
+{
+    if(trajectory.joint_trajectory.points.empty())
+        return 0.0;
+    
+    double total_length = 0.0;
+    
+    for(size_t i = 1; i < trajectory.joint_trajectory.points.size(); i++)
+    {
+        double segment_length = 0.0;
+        const auto& prev_point = trajectory.joint_trajectory.points[i-1];
+        const auto& curr_point = trajectory.joint_trajectory.points[i];
+        std::array<double, XArmForwardKinematics::N_JOINTS> prev_arr, curr_arr;
+        for (size_t i = 0; i < 7; ++i){
+            prev_arr[i] = prev_point.positions[i];
+            curr_arr[i] = curr_point.positions[i];
+        }    
+        // Compute FK for both points as Eigen::Matrix4d
+        Eigen::Matrix4d prev_tf = xarm_fk_ptr->forward_kinematics(prev_arr);
+        Eigen::Matrix4d curr_tf = xarm_fk_ptr->forward_kinematics(curr_arr);
+
+        // Extract translation components
+        Eigen::Vector3d prev_pos = prev_tf.block<3,1>(0,3);
+        Eigen::Vector3d curr_pos = curr_tf.block<3,1>(0,3);
+
+        // Compute L2 norm between the two positions
+        segment_length = (curr_pos - prev_pos).norm();
+
+        total_length += segment_length;
     }
     
     return total_length;
@@ -557,17 +602,17 @@ std::vector<RRTStarParams> PlannerTester::generateParameterCombinations(int num_
         RRTStarParams params;
         
       
-        params.range = range_values[range_indices[i]];
-        params.goal_bias = goal_bias_values[goal_bias_indices[i]];
-        params.rewire_factor = rewire_values[rewire_indices[i]];
-        params.max_nearest_neighbors = neighbor_values[neighbor_indices[i]];
+        // params.range = range_values[range_indices[i]];
+        // params.goal_bias = goal_bias_values[goal_bias_indices[i]];
+        // params.rewire_factor = rewire_values[rewire_indices[i]];
+        // params.max_nearest_neighbors = neighbor_values[neighbor_indices[i]];
        
-        params.delay_collision_checking = (i % 2 == 0);
-        params.use_k_nearest = (i % 2 == 0);
-        params.max_states = 1000 + (i % 5) * 200;
-        params.use_informed_sampling = (i % 3 == 0);
-        params.sample_rejection_attempts = 50 + (i % 10) * 10;
-        params.use_rejection_sampling = (i % 2 == 0);
+        // params.delay_collision_checking = (i % 2 == 0);
+        // params.use_k_nearest = (i % 2 == 0);
+        // params.max_states = 1000 + (i % 5) * 200;
+        // params.use_informed_sampling = (i % 3 == 0);
+        // params.sample_rejection_attempts = 50 + (i % 10) * 10;
+        // params.use_rejection_sampling = (i % 2 == 0);
         
         combinations.push_back(params);
     }
@@ -595,7 +640,8 @@ PlanningMetrics PlannerTester::runSingleTest(const RRTStarParams& params)
     
     if (success)
     {
-        metrics.path_length = calculatePathLength(my_xarm_plan.trajectory_);
+        metrics.joint_space_path_length = calculateJointPathLength(my_xarm_plan.trajectory_);
+        metrics.task_space_path_length = calculateTaskPathLength(my_xarm_plan.trajectory_);
     }
     
     return metrics;
@@ -621,14 +667,15 @@ void PlannerTester::logResults(const RRTStarParams& params, const PlanningMetric
              << params.sample_rejection_attempts << ","
              << (params.use_rejection_sampling ? "true" : "false") << ","
              << metrics.planning_time << ","
-             << metrics.path_length << ","
+             << metrics.joint_space_path_length << ","
+             << metrics.task_space_path_length << ","
              << (metrics.success ? "true" : "false") << "\n";
     
     csv_file.flush();
     
-    ROS_INFO("Trial %d completed: success=%s, time=%.3fs, path_length=%.3f", 
+    ROS_INFO("Trial %d completed: success=%s, time=%.3fs, joint_space_path_length=%.3f, task_space_path_length=%.3f",
              trial_id, metrics.success ? "true" : "false", 
-             metrics.planning_time, metrics.path_length);
+             metrics.planning_time, metrics.joint_space_path_length, metrics.task_space_path_length);
 }
 
 void PlannerTester::runParameterTests(int num_trials)
@@ -654,7 +701,7 @@ void PlannerTester::runParameterTests(int num_trials)
     
     csv_file << "trial_id,timestamp,range,goal_bias,rewire_factor,max_nearest_neighbors,"
              << "delay_collision_checking,use_k_nearest,max_states,use_informed_sampling,"
-             << "sample_rejection_attempts,use_rejection_sampling,planning_time,path_length,success\n";
+             << "sample_rejection_attempts,use_rejection_sampling,planning_time,joint_space_path_length,task_space_path_length,success\n";
     
     ROS_INFO("Starting parameter testing with %d trials...", num_trials);
     

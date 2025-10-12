@@ -5,6 +5,7 @@
   <arg name="model1300" default="false" />
   <arg name="add_realsense_d435i" default="false" />
   <arg name="add_d435i_links" default="false" />
+  <arg name="add_vader_eef" default="false" />
   <arg name="attach_to" default="world" />
   <arg name="attach_xyz" default="'0 0 0'" />
   <arg name="attach_rpy" default="'0 0 0'" />
