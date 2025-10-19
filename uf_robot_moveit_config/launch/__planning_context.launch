@@ -20,6 +20,11 @@
   <!-- The name of the parameter under which the URDF is loaded -->
   <arg name="robot_description" default="robot_description"/>
   
+  <arg name="arm_spacing" default="0.5"/>
+  <arg name="bin_xyz" default="0.0 -0.3 0.0"/>
+  <arg name="_bin_xyz" value="'$(arg bin_xyz)'" />
+  <arg name="horizontal_mount_arms" default="false"/>
+  
   <arg name="add_gripper" default="false"/>
   <arg name="add_vacuum_gripper" default="false"/>
   <arg name="add_other_geometry" default="false"/>

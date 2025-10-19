@@ -1,0 +1,60 @@
+RRTstar:
+  range: 0.1
+  goal_bias: 0.05
+  delay_collision_checking: true
+  use_k_nearest: true
+  rewire_factor: 1.1
+  max_nearest_neighbors: 10
+  max_states: 1000
+  use_informed_sampling: true
+  sample_rejection_attempts: 100
+  use_rejection_sampling: false
+  optimize: true
+  max_iterations: 10000
+  max_optimization_time: 30.0
+planning_scene:
+  num_random_blocks: 35
+  min_block_size: 0.05
+  max_block_size: 0.25
+  workspace_radius: 1.2
+  min_height: 0.1
+  max_height: 1.0
+  arm_safety_radius: 0.15
+  block_safety_margin: 0.05
+testing:
+  fixed_goal:
+    position: [0.3, 0.0, 0.4]
+    orientation: [1.0, 0.0, 0.0, 0.0]
+  num_trials: 50
+  delay_between_tests: 0.5
+  planning_timeout: 30.0
+  parameter_ranges:
+    range: [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
+    goal_bias: [0.01, 0.05, 0.1, 0.15, 0.2, 0.25]
+    rewire_factor: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+    max_nearest_neighbors: [5, 10, 15, 20, 25, 30]
+logging:
+  csv_path: /root/catkin_ws/ompl_testing_results.csv
+  include_timestamp: true
+  include_planner_params: true
+  include_trajectory_analysis: true
+  metrics:
+    planning_time: true
+    path_length: true
+    path_smoothness: true
+    success_rate: true
+    solution_cost: true
+    iterations: true
+    tree_size: true
+    path_segments: true
+    memory_usage: true
+    collision_checks: true
+    sampling_attempts: true
+performance:
+  max_velocity_scaling_factor: 0.3
+  max_acceleration_scaling_factor: 0.3
+  planning_attempts: 3
+  planning_time: 30.0
+  max_cartesian_speed: 0.1
+  execute_trajectory: false
+  allow_replanning: true

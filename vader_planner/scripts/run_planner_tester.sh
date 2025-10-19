@@ -15,7 +15,7 @@ cd /home/docker_ws
 
 # echo "Building project..."
 
-# catkin_make
+catkin_make
 
 source devel/setup.bash
 
