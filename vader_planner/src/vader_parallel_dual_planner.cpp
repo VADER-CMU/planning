@@ -147,15 +147,99 @@ public:
         : spinner(SPINNER_THREAD_NUM),
           gripper_planner_(),
           cutter_planner_() {
-        // Initialize ROS services, subscribers, publishers here
         
         planning_scene_diff_pub =
             node_handle.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
 
         psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
 
+        // Load pose strings (expected "x y z roll pitch yaw" or "x,y,z,roll,pitch,yaw") and other params from ROS parameter server
+        auto parseXYZRPY = [&](const std::string &s, geometry_msgs::Pose &pose) -> bool {
+            std::string tmp = s;
+            for (char &c : tmp) if (c == ',') c = ' ';
+            std::istringstream iss(tmp);
+            std::vector<double> vals;
+            double v;
+            while (iss >> v) vals.push_back(v);
+            if (vals.size() != 6) return false;
+            pose.position.x = vals[0];
+            pose.position.y = vals[1];
+            pose.position.z = vals[2];
+            tf2::Quaternion q;
+            q.setRPY(vals[3], vals[4], vals[5]);
+            pose.orientation = tf2::toMsg(q);
+            return true;
+        };
+
+        // Retrieve params (with sensible defaults)
+        std::string storage_bin_pose_str, gripper_home_pose_str, cutter_home_pose_str;
+        if (node_handle.getParam("storage_bin_pose", storage_bin_pose_str)) {
+            if (!parseXYZRPY(storage_bin_pose_str, storageBinPose)) {
+                ROS_WARN_NAMED("vader_planner", "storage_bin_pose param found but could not parse. Using default.");
+                storageBinPose = makePose(0.4, 0.0, 0.2, QUAT_IDENTITY());
+            }
+        } else {
+            ROS_WARN_NAMED("vader_planner", "storage_bin_pose param not found. Using default.");
+            storageBinPose = makePose(0.4, 0.0, 0.2, QUAT_IDENTITY());
+        }
+
+        if (node_handle.getParam("gripper_home_pose", gripper_home_pose_str)) {
+            if (!parseXYZRPY(gripper_home_pose_str, gripperHomePose)) {
+                ROS_WARN_NAMED("vader_planner", "gripper_home_pose param found but could not parse. Using default.");
+                gripperHomePose = makePose(0.3, 0.2, 0.3, QUAT_IDENTITY());
+            }
+        } else {
+            ROS_WARN_NAMED("vader_planner", "gripper_home_pose param not found. Using default.");
+            gripperHomePose = makePose(0.3, 0.2, 0.3, QUAT_IDENTITY());
+        }
+
+        if (node_handle.getParam("cutter_home_pose", cutter_home_pose_str)) {
+            if (!parseXYZRPY(cutter_home_pose_str, cutterHomePose)) {
+                ROS_WARN_NAMED("vader_planner", "cutter_home_pose param found but could not parse. Using default.");
+                cutterHomePose = makePose(0.3, -0.2, 0.3, QUAT_IDENTITY());
+            }
+        } else {
+            ROS_WARN_NAMED("vader_planner", "cutter_home_pose param not found. Using default.");
+            cutterHomePose = makePose(0.3, -0.2, 0.3, QUAT_IDENTITY());
+        }
+
+        // Other numeric/string params
+        if (!node_handle.getParam("inter_arm_distance", interArmDistance)) {
+            interArmDistance = 0.3;
+            ROS_WARN_NAMED("vader_planner", "inter_arm_distance param not found. Using default: %f", interArmDistance);
+        }
+        if (!node_handle.getParam("arm_ground_clearance", armGroundClearance)) {
+            armGroundClearance = 0.05;
+            ROS_WARN_NAMED("vader_planner", "arm_ground_clearance param not found. Using default: %f", armGroundClearance);
+        }
+
         ros::Duration(1.0).sleep(); // give publisher time to connect
         ROS_INFO_NAMED("vader_planner", "VADER Dual Planner Server Initialized");
+
+        {
+            // Print acquired parameters for debugging
+            auto poseToRPY = [&](const geometry_msgs::Pose &pose, double &roll, double &pitch, double &yaw) {
+                tf::Quaternion q;
+                tf::quaternionMsgToTF(pose.orientation, q);
+                tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+            };
+
+            double r, p, y;
+            poseToRPY(storageBinPose, r, p, y);
+            ROS_WARN_NAMED("vader_planner", "storage_bin_pose: position=(%f, %f, %f) rpy=(%f, %f, %f)",
+                           storageBinPose.position.x, storageBinPose.position.y, storageBinPose.position.z, r, p, y);
+
+            poseToRPY(gripperHomePose, r, p, y);
+            ROS_WARN_NAMED("vader_planner", "gripper_home_pose: position=(%f, %f, %f) rpy=(%f, %f, %f)",
+                           gripperHomePose.position.x, gripperHomePose.position.y, gripperHomePose.position.z, r, p, y);
+
+            poseToRPY(cutterHomePose, r, p, y);
+            ROS_WARN_NAMED("vader_planner", "cutter_home_pose: position=(%f, %f, %f) rpy=(%f, %f, %f)",
+                           cutterHomePose.position.x, cutterHomePose.position.y, cutterHomePose.position.z, r, p, y);
+
+            ROS_WARN_NAMED("vader_planner", "inter_arm_distance: %f", interArmDistance);
+            ROS_WARN_NAMED("vader_planner", "arm_ground_clearance: %f", armGroundClearance);
+        }
     }
 
     void start() {
@@ -167,30 +251,34 @@ public:
         spinner.stop();
     }
 
-    // Add collision object to cutter planning frame
-    void addCollisionObjectToCutter(const moveit_msgs::CollisionObject& collision_object) {
-        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-        std::vector<moveit_msgs::CollisionObject> collision_objects;
-        moveit_msgs::CollisionObject obj = collision_object;
-        obj.header.frame_id = CUTTER_PLANNING_FRAME;
-        collision_objects.push_back(obj);
-        planning_scene_interface.addCollisionObjects(collision_objects);
+    bool homeGripper(){
+
     }
 
-    // Add collision object to gripper planning frame
-    void addCollisionObjectToGripper(const moveit_msgs::CollisionObject& collision_object) {
-        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-        std::vector<moveit_msgs::CollisionObject> collision_objects;
-        moveit_msgs::CollisionObject obj = collision_object;
-        obj.header.frame_id = GRIPPER_PLANNING_FRAME;
-        collision_objects.push_back(obj);
-        planning_scene_interface.addCollisionObjects(collision_objects);
+    bool homeCutter(){
+
     }
-    
-    void addCollisionObjectGlobal(const moveit_msgs::CollisionObject& collision_object) {
-        addCollisionObjectToCutter(collision_object);
-        addCollisionObjectToGripper(collision_object);
+
+    bool gripperGrasp(){
+
     }
+
+    bool cutterGrasp(){
+
+    }
+
+    bool parallelMovePregrasp(){
+
+    }
+
+    bool parallelMoveStorage(){
+
+    }
+
+    void handleCallback(){
+        //switchboard for above movement functions
+    }
+
 
     void parallelPlanExecuteDemo(){
         ROS_WARN_NAMED("vader_planner", "Starting parallel planning and execution demo in ten seconds...");
@@ -258,6 +346,12 @@ public:
     }
 
 private:
+    geometry_msgs::Pose storageBinPose;
+    geometry_msgs::Pose gripperHomePose;
+    geometry_msgs::Pose cutterHomePose;
+    double interArmDistance;
+    double armGroundClearance;
+
     
     ros::NodeHandle node_handle;
     ros::Publisher planning_scene_diff_pub;
@@ -282,12 +376,12 @@ int main(int argc, char **argv)
 
     plannerServer.start();
 
-    ros::Duration(5).sleep();
+    // ros::Duration(5).sleep();
 
-    double divide_workspace_y = 0.375;
+    // double divide_workspace_y = 0.375;
 
-    plannerServer.setUpSharedWorkspaceCollision(divide_workspace_y);
-    plannerServer.parallelPlanExecuteDemo();
+    // plannerServer.setUpSharedWorkspaceCollision(divide_workspace_y);
+    // plannerServer.parallelPlanExecuteDemo();
     ros::waitForShutdown();
     return 0;
 }
