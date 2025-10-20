@@ -28,6 +28,7 @@
     <arg name="arm_spacing" default="0.5"/>
     <arg name="bin_xyz" default="0.0 -0.3 0.0"/>
     <arg name="horizontal_mount_arms" default="true"/>
+    <arg name="arm_height_horizontal_mount" default="0.5"/>
     
     <arg name="add_realsense_d435i" default="false" />
     <arg name="add_d435i_links" default="false" />
@@ -78,6 +79,7 @@
 
 
     <arg name="arm_spacing" value="$(arg arm_spacing)"/>
+    <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
     <arg name="bin_xyz" value="$(arg bin_xyz)"/>
     <arg name="horizontal_mount_arms" value="$(arg horizontal_mount_arms)"/>
     <arg name="dof" value="$(arg dof)" />

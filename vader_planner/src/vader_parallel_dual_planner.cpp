@@ -57,6 +57,7 @@
 const double jump_threshold = 0.0;
 const double eef_step = 0.005;
 const double maxV_scale_factor = 0.3;
+const double cartesian_threshold = 0.9;
 
 const std::string GRIPPER_MOVE_GROUP = "L_xarm7";
 const std::string CUTTER_MOVE_GROUP = "R_xarm7";
@@ -71,12 +72,23 @@ public:
         }
 
     // Plan a Cartesian path
-    std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const std::vector<geometry_msgs::Pose>& waypoints) {
-        // moveit_msgs::RobotTrajectory trajectory;
-        // double fraction = move_group_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
-        moveit::planning_interface::MoveGroupInterface::Plan plan;
-        // plan.trajectory_ = trajectory;
-        return plan;
+    std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const geometry_msgs::Pose& target_pose) {
+        std::vector<geometry_msgs::Pose> waypoints;
+        waypoints.push_back(target_pose);
+        move_group_.setMaxVelocityScalingFactor(maxV_scale_factor);
+
+        moveit_msgs::RobotTrajectory trajectory;
+        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+        
+        if (fraction >= cartesian_threshold) {
+            ROS_INFO_NAMED("vader_planner", "Gripper cartesian path computed successfully.");
+            moveit::planning_interface::MoveGroupInterface::Plan plan;
+            plan.trajectory_ = trajectory;
+            return plan;
+        } else {
+            ROS_ERROR_NAMED("vader_planner", "Gripper cartesian path computation failed with coverage fraction: %f", fraction);
+            return std::nullopt;
+        }
     }
 
     // Plan using RRT (default MoveIt planner)
@@ -103,7 +115,6 @@ public:
         move_group_.asyncExecute(plan);
     }
 
-private:
     moveit::planning_interface::MoveGroupInterface move_group_;
 };
 
@@ -115,12 +126,23 @@ public:
         }
 
     // Plan a Cartesian path
-    std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const std::vector<geometry_msgs::Pose>& waypoints) {
-        // moveit_msgs::RobotTrajectory trajectory;
-        // double fraction = move_group_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
-        moveit::planning_interface::MoveGroupInterface::Plan plan;
-        // plan.trajectory_ = trajectory;
-        return plan;
+    std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const geometry_msgs::Pose& target_pose) {
+        std::vector<geometry_msgs::Pose> waypoints;
+        waypoints.push_back(target_pose);
+        move_group_.setMaxVelocityScalingFactor(maxV_scale_factor);
+
+        moveit_msgs::RobotTrajectory trajectory;
+        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+        
+        if (fraction >= cartesian_threshold) {
+            ROS_INFO_NAMED("vader_planner", "Cutter cartesian path computed successfully.");
+            moveit::planning_interface::MoveGroupInterface::Plan plan;
+            plan.trajectory_ = trajectory;
+            return plan;
+        } else {
+            ROS_ERROR_NAMED("vader_planner", "Cutter cartesian path computation failed with coverage fraction: %f", fraction);
+            return std::nullopt;
+        }
     }
 
     // Plan using RRT (default MoveIt planner)
@@ -146,7 +168,6 @@ public:
         move_group_.asyncExecute(plan);
     }
 
-private:
     moveit::planning_interface::MoveGroupInterface move_group_;
 };
 
@@ -159,6 +180,10 @@ public:
         
         planning_scene_diff_pub =
             node_handle.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+
+
+        display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true); /*necessary?*/
+        visual_tools = new moveit_visual_tools::MoveItVisualTools("L_link_base");
 
         psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
 
@@ -214,13 +239,13 @@ public:
         }
 
         // Other numeric/string params
-        if (!node_handle.getParam("inter_arm_distance", interArmDistance)) {
-            interArmDistance = 0.3;
-            ROS_WARN_NAMED("vader_planner", "inter_arm_distance param not found. Using default: %f", interArmDistance);
+        if (!node_handle.getParam("arm_spacing", armSpacing)) {
+            armSpacing = 0.3;
+            ROS_WARN_NAMED("vader_planner", "arm_spacing param not found. Using default: %f", armSpacing);
         }
-        if (!node_handle.getParam("arm_ground_clearance", armGroundClearance)) {
-            armGroundClearance = 0.05;
-            ROS_WARN_NAMED("vader_planner", "arm_ground_clearance param not found. Using default: %f", armGroundClearance);
+        if (!node_handle.getParam("arm_height_horizontal_mount", armHeightHorizontalMount)) {
+            armHeightHorizontalMount = 0.05;
+            ROS_WARN_NAMED("vader_planner", "arm_height_horizontal_mount param not found. Using default: %f", armHeightHorizontalMount);
         }
 
         ros::Duration(1.0).sleep(); // give publisher time to connect
@@ -240,10 +265,31 @@ public:
                            cutterHomePose.position.x, cutterHomePose.position.y, cutterHomePose.position.z,
                            cutterHomePose.orientation.x, cutterHomePose.orientation.y, cutterHomePose.orientation.z, cutterHomePose.orientation.w);
 
-            ROS_WARN_NAMED("vader_planner", "inter_arm_distance: %f", interArmDistance);
-            ROS_WARN_NAMED("vader_planner", "arm_ground_clearance: %f", armGroundClearance);
+            ROS_WARN_NAMED("vader_planner", "arm_spacing: %f", armSpacing);
+            ROS_WARN_NAMED("vader_planner", "arm_height_horizontal_mount: %f", armHeightHorizontalMount);
         }
     }
+
+    ~VADERPlannerServer() {
+        delete visual_tools;
+    }
+
+    // void show_trails(const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_gripper,
+    //                  const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_cutter)
+    // {
+    //     visual_tools->deleteAllMarkers();
+
+    //     if (plan_gripper.has_value()) {
+    //         const robot_state::JointModelGroup *joint_model_group_gripper = gripper_planner_.move_group_.getCurrentState()->getJointModelGroup(GRIPPER_MOVE_GROUP);
+    //         visual_tools->publishTrajectoryLine(plan_gripper->trajectory_, joint_model_group_gripper);
+    //     }
+    //     if (plan_cutter.has_value()) {
+    //         const robot_state::JointModelGroup *joint_model_group_cutter = cutter_planner_.move_group_.getCurrentState()->getJointModelGroup(CUTTER_MOVE_GROUP);
+    //         visual_tools->publishTrajectoryLine(plan_cutter->trajectory_, joint_model_group_cutter);
+    //     }
+
+    //     visual_tools->trigger();
+    // }
 
     void start() {
         // Start server logic here
@@ -260,6 +306,7 @@ public:
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper home movement.");
             return false;
         }
+        // show_trails(plan, std::nullopt);
         return gripper_planner_.execSync(plan.value());
     }
 
@@ -269,11 +316,19 @@ public:
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
             return false;
         }
+        // show_trails(std::nullopt, plan);
         return cutter_planner_.execSync(plan.value());
     }
 
     bool gripperGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
-        return false;
+        // return false;
+        auto plan = gripper_planner_.planCartesian(target_pose);
+        if(plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper grasp movement.");
+            return false;
+        }
+        // show_trails(plan, std::nullopt);
+        return gripper_planner_.execSync(plan.value());
     }
 
     bool cutterGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
@@ -371,9 +426,10 @@ private:
     geometry_msgs::Pose storageBinPose;
     geometry_msgs::Pose gripperHomePose;
     geometry_msgs::Pose cutterHomePose;
-    double interArmDistance;
-    double armGroundClearance;
-
+    double armSpacing;
+    double armHeightHorizontalMount;    
+    moveit_visual_tools::MoveItVisualTools *visual_tools;
+    ros::Publisher display_path;
     
     ros::NodeHandle node_handle;
     ros::Publisher planning_scene_diff_pub;
@@ -399,7 +455,11 @@ int main(int argc, char **argv)
     plannerServer.start();
 
     plannerServer.homeGripper();
-    plannerServer.homeCutter();
+    // plannerServer.homeCutter();
+
+
+    geometry_msgs::Pose target_pose = makePose(0.7, 0.0, 0.5, QUAT_TOWARD_PLANT());
+    plannerServer.gripperGrasp(target_pose, 0.0);
 
     // ros::Duration(5).sleep();
 

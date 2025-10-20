@@ -22,6 +22,7 @@
   <arg name="bin_xyz" default="0.0 -0.3 0.0"/>
   <arg name="_bin_xyz" value="'$(arg bin_xyz)'" />
   <arg name="horizontal_mount_arms" default="false"/>
+  <arg name="arm_height_horizontal_mount" default="0.5"/>
   <!-- The name of the parameter under which the URDF is loaded -->
   <arg name="robot_description" default="robot_description"/>
   
@@ -66,6 +67,7 @@
       add_vader_cutter_2:=$(arg add_vader_eef)
       bin_xyz:=$(arg _bin_xyz)
       arm_spacing:=$(arg arm_spacing)
+      arm_height_horizontal_mount:=$(arg arm_height_horizontal_mount)
       horizontal_mount_arms:=$(arg horizontal_mount_arms)
     "/>
 

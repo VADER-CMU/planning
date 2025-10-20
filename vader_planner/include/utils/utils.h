@@ -60,10 +60,10 @@ inline geometry_msgs::Quaternion QUAT_DOWN() {
 
 inline geometry_msgs::Quaternion QUAT_TOWARD_PLANT() {
     geometry_msgs::Quaternion q;
-    q.x = std::sqrt(2.0) / 2.0;
-    q.y = 0.0;
-    q.z = std::sqrt(2.0) / 2.0;
-    q.w = 0.0;
+    q.x = 0.0;
+    q.y = std::sqrt(2.0) / 2.0;
+    q.z = 0.0;
+    q.w = std::sqrt(2.0) / 2.0;
     return q;
 }
 
