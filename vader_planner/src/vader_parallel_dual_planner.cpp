@@ -34,11 +34,7 @@
 #include <vader_msgs/Peduncle.h>
 #include <vader_msgs/Fruit.h>
 
-#include <vader_msgs/BimanualPlanRequest.h>
-#include <vader_msgs/BimanualExecRequest.h>
-#include <vader_msgs/MoveToStorageRequest.h>
-#include <vader_msgs/GoHomeRequest.h>
-#include <vader_msgs/SimulationPepperSequence.h>
+#include <vader_msgs/PlanningRequest.h>
 
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/planning_scene/planning_scene.h>
@@ -50,6 +46,7 @@
 #include <future>
 #include <iostream>
 #include <optional>
+#include <vector>
 
 #define SPINNER_THREAD_NUM 2
 
@@ -213,40 +210,40 @@ public:
         if (node_handle.getParam("storage_bin_pose", storage_bin_pose_str)) {
             if (!parseXYZQuat(storage_bin_pose_str, storageBinPose)) {
                 ROS_WARN_NAMED("vader_planner", "storage_bin_pose param found but could not parse. Using default.");
-                storageBinPose = makePose(0.4, 0.0, 0.2, QUAT_IDENTITY());
+                storageBinPose = makePose(0.2, -0.4, 0.3, QUAT_DOWN());
             }
         } else {
             ROS_WARN_NAMED("vader_planner", "storage_bin_pose param not found. Using default.");
-            storageBinPose = makePose(0.4, 0.0, 0.2, QUAT_IDENTITY());
+            storageBinPose = makePose(0.2, -0.4, 0.3, QUAT_DOWN());
         }
 
         if (node_handle.getParam("gripper_home_pose", gripper_home_pose_str)) {
             if (!parseXYZQuat(gripper_home_pose_str, gripperHomePose)) {
                 ROS_WARN_NAMED("vader_planner", "gripper_home_pose param found but could not parse. Using default.");
-                gripperHomePose = makePose(0.3, 0.2, 0.3, QUAT_IDENTITY());
+                gripperHomePose = makePose(0.6, 0.0, 0.3, QUAT_TOWARD_PLANT());
             }
         } else {
             ROS_WARN_NAMED("vader_planner", "gripper_home_pose param not found. Using default.");
-            gripperHomePose = makePose(0.3, 0.2, 0.3, QUAT_IDENTITY());
+            gripperHomePose = makePose(0.6, 0.0, 0.3, QUAT_TOWARD_PLANT());
         }
 
         if (node_handle.getParam("cutter_home_pose", cutter_home_pose_str)) {
             if (!parseXYZQuat(cutter_home_pose_str, cutterHomePose)) {
                 ROS_WARN_NAMED("vader_planner", "cutter_home_pose param found but could not parse. Using default.");
-                cutterHomePose = makePose(0.3, -0.2, 0.3, QUAT_IDENTITY());
+                cutterHomePose = makePose(0.6, 0.5, 0.3, QUAT_TOWARD_PLANT());
             }
         } else {
             ROS_WARN_NAMED("vader_planner", "cutter_home_pose param not found. Using default.");
-            cutterHomePose = makePose(0.3, -0.2, 0.3, QUAT_IDENTITY());
+            cutterHomePose = makePose(0.6, 0.5, 0.3, QUAT_TOWARD_PLANT());
         }
 
         // Other numeric/string params
         if (!node_handle.getParam("arm_spacing", armSpacing)) {
-            armSpacing = 0.3;
+            armSpacing = 0.5;
             ROS_WARN_NAMED("vader_planner", "arm_spacing param not found. Using default: %f", armSpacing);
         }
         if (!node_handle.getParam("arm_height_horizontal_mount", armHeightHorizontalMount)) {
-            armHeightHorizontalMount = 0.05;
+            armHeightHorizontalMount = 0.5;
             ROS_WARN_NAMED("vader_planner", "arm_height_horizontal_mount param not found. Using default: %f", armHeightHorizontalMount);
         }
 
@@ -270,6 +267,10 @@ public:
             ROS_WARN_NAMED("vader_planner", "arm_spacing: %f", armSpacing);
             ROS_WARN_NAMED("vader_planner", "arm_height_horizontal_mount: %f", armHeightHorizontalMount);
         }
+
+        //Register service handler
+
+        planning_service = node_handle.advertiseService("vader_planning_service", &VADERPlannerServer::planningServiceHandler, this);
     }
 
     void setupWorkspaceCollision(){
@@ -288,7 +289,7 @@ public:
 
         // Center of the box
         geometry_msgs::Pose box_pose;
-        box_pose.position.x = -0.4;
+        box_pose.position.x = -0.5;
         box_pose.position.y = (-0.25 + 0.75) / 2.0; // 0.25
         box_pose.position.z = 0.5; // center at z = 0.5
         box_pose.orientation.w = 1.0;
@@ -380,38 +381,85 @@ public:
     }
 
     bool parallelMoveStorage(){
+        // auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
+        // if(gripper_plan == std::nullopt) {
+        //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage bin.");
+        //     return false;
+        // }
+
+        // // show_trails(gripper_plan, std::nullopt);
+
+        // bool success = gripper_planner_.execSync(gripper_plan.value());
+
+        // if(!success) {
+        //     ROS_ERROR_NAMED("vader_planner", "Execution to storage location failed");
+        //     return false;
+        // }
+
+        // return homeCutter();
+
+        bool success = true;
         auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
         if(gripper_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage bin.");
             return false;
         }
-
-        // show_trails(gripper_plan, std::nullopt);
-
-        bool success = gripper_planner_.execSync(gripper_plan.value());
-
-        if(!success) {
-            ROS_ERROR_NAMED("vader_planner", "Execution to storage location failed");
-            return false;
+        auto cutter_plan_future = std::async(&VADERCutterPlanner::planRRT, &cutter_planner_, cutterHomePose);
+        std::thread gripper_exec_thread([&]() {
+            gripper_planner_.execSync(gripper_plan.value());
+            ROS_WARN_NAMED("vader_planner", "Gripper movement to storage bin finished.");
+        });
+        auto cutter_plan = cutter_plan_future.get();
+        if(cutter_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
+            success = false;
         }
-
-        return homeCutter();
-
-        // bool success = true;
-        // success &= gripper_planner_.planRRT(storageBinPose);
-        // auto cutter_plan_future = std::async(&VADERCutterPlanner::planRRT, &cutter_planner_, cutterHomePose);
-        // std::thread gripper_exec_thread([&]() {
-        //     gripper_planner_.execSync();
-        //     ROS_WARN_NAMED("vader_planner", "Gripper movement to storage bin finished.");
-        // });
-        // auto cutter_plan = cutter_plan_future.get();
-        // gripper_exec_thread.join();
-        // cutter_planner_.execSync();
+        gripper_exec_thread.join();
+        success &= cutter_planner_.execSync(cutter_plan.value());
+        return success;
     }
 
-    // void handleCallback(){
-    //     //switchboard for above movement functions
-    // }
+    std::vector<geometry_msgs::Pose> generatePregraspPoses(const vader_msgs::Pepper& pepper, bool is_gripper){
+        std::vector<geometry_msgs::Pose> poses;
+        // TODO implement
+        return poses;
+    }
+
+    bool planningServiceHandler(vader_msgs::PlanningRequest::Request &req,
+                                vader_msgs::PlanningRequest::Response &res) {
+        // Implement planning service logic here
+        switch(req.mode) {
+            case vader_msgs::PlanningRequest::Request::HOME_CUTTER:
+                res.success = homeCutter();
+                break;
+            case vader_msgs::PlanningRequest::Request::HOME_GRIPPER:
+                res.success = homeGripper();
+                break;
+            case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_PREGRASP:
+                //TODO here, calculate desired pose based off of pepper estimate
+                // res.success = parallelMovePregrasp(req.gripper_target_pose, req.cutter_target_pose);
+                res.success = false; // Not implemented
+                break;
+            case vader_msgs::PlanningRequest::Request::GRIPPER_GRASP:
+                // TODO here, calculate desired pose based off of pepper estimate
+                // res.success = gripperGrasp(req., req.final_approach_dist);
+                res.success = false; // Not implemented
+                break;
+            case vader_msgs::PlanningRequest::Request::CUTTER_GRASP:
+                // TODO here, calculate desired pose based off of pepper estimate
+                // res.success = cutterGrasp(req., req.final_approach_dist);
+                res.success = false; // Not implemented
+                break;
+            case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_STORAGE:
+                res.success = parallelMoveStorage();
+                break;
+            default:
+                ROS_ERROR_NAMED("vader_planner", "Unknown planning mode requested: %d", req.mode);
+                res.success = false;
+                break;
+        }
+        return res.success;
+    }
 
 
     // void parallelPlanExecuteDemo(){
@@ -442,20 +490,20 @@ public:
         moveit_msgs::CollisionObject left_workspace;
         left_workspace.id = "left_workspace";
         left_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive left_primitive = makeBoxPrimitive(0.4, divide_workspace_y, 0.5);
+        shape_msgs::SolidPrimitive left_primitive = makeBoxPrimitive(0.6, divide_workspace_y, 1);
         left_workspace.primitives.push_back(left_primitive);
 
-        geometry_msgs::Pose left_pose = makePose(0.2, divide_workspace_y / 2.0, 0.25, QUAT_IDENTITY());
+        geometry_msgs::Pose left_pose = makePose(0.3, divide_workspace_y / 2.0, 0.5, QUAT_IDENTITY());
         left_workspace.primitive_poses.push_back(left_pose);
         left_workspace.operation = left_workspace.ADD;
 
         moveit_msgs::CollisionObject right_workspace;
         right_workspace.id = "right_workspace";
         right_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive right_primitive = makeBoxPrimitive(0.4, 0.5 - divide_workspace_y, 0.5);
+        shape_msgs::SolidPrimitive right_primitive = makeBoxPrimitive(0.6, 0.5 - divide_workspace_y, 1);
         right_workspace.primitives.push_back(right_primitive);
 
-        geometry_msgs::Pose right_pose = makePose(0.2, divide_workspace_y + (0.5 - divide_workspace_y) / 2.0, 0.25, QUAT_IDENTITY());
+        geometry_msgs::Pose right_pose = makePose(0.3, divide_workspace_y + (0.5 - divide_workspace_y) / 2.0, 0.5, QUAT_IDENTITY());
         right_workspace.primitive_poses.push_back(right_pose);
         right_workspace.operation = right_workspace.ADD;
 
@@ -474,6 +522,14 @@ public:
             allowed_entries.emplace_back("left_workspace", gripper_link_name);
             allowed_entries.emplace_back("right_workspace", cutter_link_name);
         }
+        allowed_entries.emplace_back("vader_gripper_base_link", "left_workspace");
+        allowed_entries.emplace_back("fing_1", "left_workspace");
+        allowed_entries.emplace_back("fing_2", "left_workspace");
+        allowed_entries.emplace_back("thumb_1", "left_workspace");
+        allowed_entries.emplace_back("vader_cutter_base_link", "right_workspace");
+        allowed_entries.emplace_back("blade_moving", "right_workspace");
+        allowed_entries.emplace_back("blade_stationary", "right_workspace");
+        
 
         setACMEntries(psm, planning_scene_diff_pub, allowed_entries);
         ROS_WARN_NAMED("vader_planner", "Shared workspace demo collision objs setup complete.");
@@ -490,6 +546,8 @@ private:
     
     ros::NodeHandle node_handle;
     ros::Publisher planning_scene_diff_pub;
+    ros::ServiceServer planning_service;
+
     planning_scene_monitor::PlanningSceneMonitorPtr psm;
     VADERGripperPlanner gripper_planner_;
     VADERCutterPlanner cutter_planner_;
@@ -514,6 +572,8 @@ int main(int argc, char **argv)
     // plannerServer.homeGripper();
     // plannerServer.homeCutter();
 
+    plannerServer.setUpSharedWorkspaceCollision(0.25);
+    ros::Duration(0.5).sleep();
     plannerServer.homeGripper();
     plannerServer.parallelMoveStorage();
     // geometry_msgs::Pose target_pose = makePose(0.7, 0.0, 0.5, QUAT_TOWARD_PLANT());
@@ -523,7 +583,6 @@ int main(int argc, char **argv)
 
     // double divide_workspace_y = 0.375;
 
-    // plannerServer.setUpSharedWorkspaceCollision(divide_workspace_y);
     // plannerServer.parallelPlanExecuteDemo();
     ros::waitForShutdown();
     return 0;

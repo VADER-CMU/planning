@@ -51,8 +51,8 @@ inline geometry_msgs::Quaternion QUAT_IDENTITY() {
 
 inline geometry_msgs::Quaternion QUAT_DOWN() {
     geometry_msgs::Quaternion q;
-    q.x = 1.0;
-    q.y = 0.0;
+    q.x = 0.0;
+    q.y = 1.0;
     q.z = 0.0;
     q.w = 0.0;
     return q;
