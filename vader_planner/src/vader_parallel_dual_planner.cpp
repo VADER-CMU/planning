@@ -187,6 +187,8 @@ public:
 
         psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
 
+        setupWorkspaceCollision();
+
         // Load pose strings (expected "x y z qx qy qz qw" or "x,y,z,qx,qy,qz,qw") and other params from ROS parameter server
         auto parseXYZQuat = [&](const std::string &s, geometry_msgs::Pose &pose) -> bool {
             std::string tmp = s;
@@ -270,26 +272,64 @@ public:
         }
     }
 
+    void setupWorkspaceCollision(){
+        //Warthog body
+        moveit_msgs::CollisionObject warthog_body;
+        warthog_body.id = "warthog_body";
+        warthog_body.header.frame_id = "world";
+
+        // Box dimensions: x = 0.5 (from -0.6 to -0.1), y = 1.0 (from -0.25 to 0.75), z = 1.0 (from 0 to 1)
+        shape_msgs::SolidPrimitive box_primitive;
+        box_primitive.type = shape_msgs::SolidPrimitive::BOX;
+        box_primitive.dimensions.resize(3);
+        box_primitive.dimensions[shape_msgs::SolidPrimitive::BOX_X] = 0.8;
+        box_primitive.dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.0;
+        box_primitive.dimensions[shape_msgs::SolidPrimitive::BOX_Z] = 0.6;
+
+        // Center of the box
+        geometry_msgs::Pose box_pose;
+        box_pose.position.x = -0.4;
+        box_pose.position.y = (-0.25 + 0.75) / 2.0; // 0.25
+        box_pose.position.z = 0.5; // center at z = 0.5
+        box_pose.orientation.w = 1.0;
+
+        warthog_body.primitives.push_back(box_primitive);
+        warthog_body.primitive_poses.push_back(box_pose);
+        warthog_body.operation = warthog_body.ADD;
+
+        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+        // Define an orange bright color as std_msgs::ColorRGBA
+        std_msgs::ColorRGBA orange_bright;
+        orange_bright.r = 1.0f;
+        orange_bright.g = 0.5f;
+        orange_bright.b = 0.0f;
+        orange_bright.a = 1.0f; // fully opaque
+
+        planning_scene_interface.applyCollisionObject(warthog_body, orange_bright);
+    }
+
     ~VADERPlannerServer() {
         delete visual_tools;
     }
 
-    // void show_trails(const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_gripper,
-    //                  const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_cutter)
-    // {
-    //     visual_tools->deleteAllMarkers();
+    void show_trails(const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_gripper,
+                     const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_cutter)
+    {
+        visual_tools->deleteAllMarkers();
 
-    //     if (plan_gripper.has_value()) {
-    //         const robot_state::JointModelGroup *joint_model_group_gripper = gripper_planner_.move_group_.getCurrentState()->getJointModelGroup(GRIPPER_MOVE_GROUP);
-    //         visual_tools->publishTrajectoryLine(plan_gripper->trajectory_, joint_model_group_gripper);
-    //     }
-    //     if (plan_cutter.has_value()) {
-    //         const robot_state::JointModelGroup *joint_model_group_cutter = cutter_planner_.move_group_.getCurrentState()->getJointModelGroup(CUTTER_MOVE_GROUP);
-    //         visual_tools->publishTrajectoryLine(plan_cutter->trajectory_, joint_model_group_cutter);
-    //     }
+        if (plan_gripper.has_value()) {
+            const robot_state::JointModelGroup *joint_model_group_gripper = gripper_planner_.move_group_.getCurrentState()->getJointModelGroup(GRIPPER_MOVE_GROUP);
+            // const robot_state::LinkModel* eef_link_model = joint_model_group_gripper->getParentModel().getLinkModel("L_link_eef");
+            visual_tools->publishTrajectoryLine(plan_gripper->trajectory_, joint_model_group_gripper);
+        }
+        if (plan_cutter.has_value()) {
+            const robot_state::JointModelGroup *joint_model_group_cutter = cutter_planner_.move_group_.getCurrentState()->getJointModelGroup(CUTTER_MOVE_GROUP);
+            // const robot_state::LinkModel* eef_link_model = joint_model_group_cutter->getParentModel().getLinkModel("R_link_eef");
+            visual_tools->publishTrajectoryLine(plan_cutter->trajectory_, joint_model_group_cutter);
+        }
 
-    //     visual_tools->trigger();
-    // }
+        visual_tools->trigger();
+    }
 
     void start() {
         // Start server logic here
@@ -340,6 +380,23 @@ public:
     }
 
     bool parallelMoveStorage(){
+        auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
+        if(gripper_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage bin.");
+            return false;
+        }
+
+        // show_trails(gripper_plan, std::nullopt);
+
+        bool success = gripper_planner_.execSync(gripper_plan.value());
+
+        if(!success) {
+            ROS_ERROR_NAMED("vader_planner", "Execution to storage location failed");
+            return false;
+        }
+
+        return homeCutter();
+
         // bool success = true;
         // success &= gripper_planner_.planRRT(storageBinPose);
         // auto cutter_plan_future = std::async(&VADERCutterPlanner::planRRT, &cutter_planner_, cutterHomePose);
@@ -454,12 +511,13 @@ int main(int argc, char **argv)
 
     plannerServer.start();
 
-    plannerServer.homeGripper();
+    // plannerServer.homeGripper();
     // plannerServer.homeCutter();
 
-
-    geometry_msgs::Pose target_pose = makePose(0.7, 0.0, 0.5, QUAT_TOWARD_PLANT());
-    plannerServer.gripperGrasp(target_pose, 0.0);
+    plannerServer.homeGripper();
+    plannerServer.parallelMoveStorage();
+    // geometry_msgs::Pose target_pose = makePose(0.7, 0.0, 0.5, QUAT_TOWARD_PLANT());
+    // plannerServer.gripperGrasp(target_pose, 0.0);
 
     // ros::Duration(5).sleep();
 
