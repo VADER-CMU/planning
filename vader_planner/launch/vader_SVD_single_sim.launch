@@ -65,11 +65,11 @@
 
 
   <!-- XARM GAZEBO -->
+  <!-- Commented out problematic args to avoid RLException about unused args -->
   <include file="$(find xarm_gazebo)/launch/xarm7_beside_table.launch">
-    <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> 
-    <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/>
+    <!-- <arg name="add_vader_gripper" value="$(arg add_vader_gripper)" /> -->
+    <!-- <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/> -->
     <!-- <arg name="bin_xyz" value="$(arg bin_xyz)"/> -->
-
   </include>
 
 
