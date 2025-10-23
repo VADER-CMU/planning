@@ -47,6 +47,7 @@
 #include <iostream>
 #include <optional>
 #include <vector>
+#include <queue>
 
 #define SPINNER_THREAD_NUM 2
 
@@ -180,7 +181,7 @@ public:
 
 
         display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true); /*necessary?*/
-        visual_tools = new moveit_visual_tools::MoveItVisualTools("L_link_base");
+        visual_tools = new moveit_visual_tools::MoveItVisualTools("world");
 
         psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
 
@@ -320,17 +321,130 @@ public:
 
         if (plan_gripper.has_value()) {
             const robot_state::JointModelGroup *joint_model_group_gripper = gripper_planner_.move_group_.getCurrentState()->getJointModelGroup(GRIPPER_MOVE_GROUP);
-            // const robot_state::LinkModel* eef_link_model = joint_model_group_gripper->getParentModel().getLinkModel("L_link_eef");
             visual_tools->publishTrajectoryLine(plan_gripper->trajectory_, joint_model_group_gripper);
         }
         if (plan_cutter.has_value()) {
             const robot_state::JointModelGroup *joint_model_group_cutter = cutter_planner_.move_group_.getCurrentState()->getJointModelGroup(CUTTER_MOVE_GROUP);
-            // const robot_state::LinkModel* eef_link_model = joint_model_group_cutter->getParentModel().getLinkModel("R_link_eef");
             visual_tools->publishTrajectoryLine(plan_cutter->trajectory_, joint_model_group_cutter);
         }
 
         visual_tools->trigger();
     }
+
+    static tf::Quaternion _get_norm_quat_from_axes(tf::Vector3 &ax_x, tf::Vector3 &ax_y, tf::Vector3 &ax_z)
+    {
+        tf::Matrix3x3 rot_matrix;
+        rot_matrix.setValue(
+            ax_x.x(), ax_y.x(), ax_z.x(),
+            ax_x.y(), ax_y.y(), ax_z.y(),
+            ax_x.z(), ax_y.z(), ax_z.z());
+
+        tf::Quaternion quat;
+        rot_matrix.getRotation(quat);
+        quat.normalize();
+        return quat;
+    }
+
+    static geometry_msgs::Pose _get_pose_from_pos_and_quat(tf::Vector3 &pos, tf::Quaternion &quat)
+    {
+        geometry_msgs::Pose pose;
+        pose.position.x = pos.x();
+        pose.position.y = pos.y();
+        pose.position.z = pos.z();
+        tf::quaternionTFToMsg(quat, pose.orientation);
+        return pose;
+    }
+
+    std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist)
+    {
+        std::queue<geometry_msgs::Pose> pose_queue;
+
+        tf::Quaternion fruit_quat;
+        tf::quaternionMsgToTF(fruit_pose.orientation, fruit_quat);
+
+        tf::Vector3 fruit_axis = tf::quatRotate(fruit_quat, tf::Vector3(0, 0, 1)).normalized();
+
+        tf::Vector3 fruit_centroid(
+            fruit_pose.position.x,
+            fruit_pose.position.y,
+            fruit_pose.position.z);
+
+        tf::Vector3 u, v;
+
+        tf::Vector3 ref(0, 0, 1);
+        if (std::abs(fruit_axis.dot(ref)) > 0.9)
+        {
+            ref = tf::Vector3(1, 0, 0);
+        }
+
+        u = fruit_axis.cross(ref).normalized();
+        v = fruit_axis.cross(u).normalized();
+
+        double A = -fruit_centroid.dot(u);
+        double B = -fruit_centroid.dot(v);
+
+        double theta_min = atan2(B, A);
+
+        ROS_INFO("=== Parametric Circle Pose Queue ===");
+
+        std::vector<double> test_radii = {approach_dist, 0.3, 0.2, 0.35, 0.15, 0.4};
+        
+        for (size_t r_idx = 0; r_idx < test_radii.size(); r_idx++)
+        {
+            double radius = test_radii[r_idx];
+            
+            std::vector<double> angle_offsets;
+            if (r_idx == 0)
+            {
+                angle_offsets = {0, M_PI/6, 2*M_PI/6, 3*M_PI/6, 4*M_PI/6, 5*M_PI/6, 6*M_PI/6, 7*M_PI/6, 8*M_PI/6, 9*M_PI/6, 10*M_PI/6, 11*M_PI/6};
+            }
+            else
+            {
+                angle_offsets = {0};
+            }
+            
+            for (double offset : angle_offsets)
+            {
+                double test_angle = theta_min + offset;
+                
+                tf::Vector3 test_point = fruit_centroid + radius * (cos(test_angle) * u + sin(test_angle) * v);
+
+                tf::Vector3 test_ee_z = (fruit_centroid - test_point).normalized();
+                tf::Vector3 test_ee_y = fruit_axis.cross(test_ee_z).normalized();
+
+                if (test_ee_y.length() < 0.1)
+                {
+                    tf::Vector3 world_up(0, 0, 1);
+                    test_ee_y = (std::abs(test_ee_z.dot(world_up)) > 0.9) ? tf::Vector3(1, 0, 0).cross(test_ee_z).normalized() : world_up.cross(test_ee_z).normalized();
+                }
+
+                tf::Vector3 test_ee_x = test_ee_y.cross(test_ee_z).normalized();
+
+                tf::Quaternion test_quat = _get_norm_quat_from_axes(test_ee_x, test_ee_y, test_ee_z);
+                geometry_msgs::Pose test_pose = _get_pose_from_pos_and_quat(test_point, test_quat);
+
+                pose_queue.push(test_pose);
+
+                ROS_INFO("Pose %zu: radius=%.3f, angle_offset=%.3f rad (%.1f deg)", 
+                        pose_queue.size(), radius, offset, offset * 180.0 / M_PI);
+                ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
+                        test_pose.position.x, test_pose.position.y, test_pose.position.z);
+                ROS_INFO("  Orientation: x=%.3f,y=%.3f, z=%.3f, w=%.3f", 
+                        test_pose.orientation.x, test_pose.orientation.y, test_pose.orientation.z, test_pose.orientation.w);
+                
+                // Publish labeled coordinate axes
+                visual_tools->publishAxisLabeled(test_pose, std::to_string(pose_queue.size()), rvt::SMALL);
+
+
+            }
+        }
+        visual_tools->trigger();
+
+        ROS_INFO("=== Total poses in queue: %zu ===", pose_queue.size());
+
+        return pose_queue;
+    }
+
 
     void start() {
         // Start server logic here
@@ -347,7 +461,7 @@ public:
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper home movement.");
             return false;
         }
-        // show_trails(plan, std::nullopt);
+        show_trails(plan, std::nullopt);
         return gripper_planner_.execSync(plan.value());
     }
 
@@ -357,7 +471,7 @@ public:
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
             return false;
         }
-        // show_trails(std::nullopt, plan);
+        show_trails(std::nullopt, plan);
         return cutter_planner_.execSync(plan.value());
     }
 
@@ -368,7 +482,7 @@ public:
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper grasp movement.");
             return false;
         }
-        // show_trails(plan, std::nullopt);
+        show_trails(plan, std::nullopt);
         return gripper_planner_.execSync(plan.value());
     }
 
@@ -417,12 +531,6 @@ public:
         gripper_exec_thread.join();
         success &= cutter_planner_.execSync(cutter_plan.value());
         return success;
-    }
-
-    std::vector<geometry_msgs::Pose> generatePregraspPoses(const vader_msgs::Pepper& pepper, bool is_gripper){
-        std::vector<geometry_msgs::Pose> poses;
-        // TODO implement
-        return poses;
     }
 
     bool planningServiceHandler(vader_msgs::PlanningRequest::Request &req,
@@ -573,9 +681,19 @@ int main(int argc, char **argv)
     // plannerServer.homeCutter();
 
     plannerServer.setUpSharedWorkspaceCollision(0.25);
-    ros::Duration(0.5).sleep();
+    // ros::Duration(0.5).sleep();
     plannerServer.homeGripper();
-    plannerServer.parallelMoveStorage();
+    // plannerServer.parallelMoveStorage();
+
+    tf2::Quaternion q;
+    double angle_rad = 20.0 * M_PI / 180.0;
+    q.setRPY(0.0, angle_rad, 0.0); // roll, pitch, yaw -> rotate 20 deg about Y (pitch)
+    q.normalize();
+    geometry_msgs::Quaternion quat_msg = tf2::toMsg(q);
+    geometry_msgs::Pose fruit_pose = makePose(0.7, 0.0, 0.5, quat_msg);
+    
+    plannerServer.generate_parametric_circle_poses(
+        fruit_pose, 0.2);
     // geometry_msgs::Pose target_pose = makePose(0.7, 0.0, 0.5, QUAT_TOWARD_PLANT());
     // plannerServer.gripperGrasp(target_pose, 0.0);
 
