@@ -537,34 +537,48 @@ public:
                                 vader_msgs::PlanningRequest::Response &res) {
         // Implement planning service logic here
         switch(req.mode) {
-            case vader_msgs::PlanningRequest::Request::HOME_CUTTER:
+            case vader_msgs::PlanningRequest::Request::HOME_CUTTER:{
                 res.success = homeCutter();
                 break;
-            case vader_msgs::PlanningRequest::Request::HOME_GRIPPER:
+            }
+            case vader_msgs::PlanningRequest::Request::HOME_GRIPPER:{
                 res.success = homeGripper();
                 break;
+            }
             case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_PREGRASP:
+            {
+                vader_msgs::Pepper pepper_estimate = req.pepper;
+
+                ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
+                        pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
+                auto gripper_target_poses = generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25);
+                auto cutter_target_poses = generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25);
                 //TODO here, calculate desired pose based off of pepper estimate
                 // res.success = parallelMovePregrasp(req.gripper_target_pose, req.cutter_target_pose);
                 res.success = false; // Not implemented
                 break;
-            case vader_msgs::PlanningRequest::Request::GRIPPER_GRASP:
+            }
+            case vader_msgs::PlanningRequest::Request::GRIPPER_GRASP:{
                 // TODO here, calculate desired pose based off of pepper estimate
                 // res.success = gripperGrasp(req., req.final_approach_dist);
                 res.success = false; // Not implemented
                 break;
-            case vader_msgs::PlanningRequest::Request::CUTTER_GRASP:
+            }
+            case vader_msgs::PlanningRequest::Request::CUTTER_GRASP:{
                 // TODO here, calculate desired pose based off of pepper estimate
                 // res.success = cutterGrasp(req., req.final_approach_dist);
                 res.success = false; // Not implemented
                 break;
-            case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_STORAGE:
+            }
+            case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_STORAGE:{
                 res.success = parallelMoveStorage();
                 break;
-            default:
+            }
+            default:{
                 ROS_ERROR_NAMED("vader_planner", "Unknown planning mode requested: %d", req.mode);
                 res.success = false;
                 break;
+            }
         }
         return res.success;
     }
