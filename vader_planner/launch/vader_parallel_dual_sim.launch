@@ -3,7 +3,9 @@
     <arg name="storage_bin_pose" value="0.2 -0.4 0.3 0 1 0 0"/><!-- xyz qx qy qz qw -->
     <arg name="gripper_home_pose" value="0.6 0.0 0.3 0 0.707 0 0.707"/> <!-- xyz qx qy qz qw -->
     <arg name="cutter_home_pose" value="0.6 0.5 0.3 0 0.707 0 0.707"/>
-    <arg name="arm_spacing" value="0.5"/>
+    <arg name="arm_spacing" value="0.5"/>  
+    <arg name="sim_pepper_pose" default="0.0 0.0 0.0 0.0 0.0 0.0"/>
+
     <arg name="arm_height_horizontal_mount" value="0.5"/>
     <param name="storage_bin_pose" value="$(arg storage_bin_pose)"/>
     <param name="gripper_home_pose" value="$(arg gripper_home_pose)"/>
@@ -15,6 +17,8 @@
         <arg name="bin_xyz" value="0.0 -0.3 0.0"/>
         <arg name="arm_spacing" value="$(arg arm_spacing)"/>
         <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
+        <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/>
+
         <arg name="no_gui_plan" value="true" />
     </include>
 

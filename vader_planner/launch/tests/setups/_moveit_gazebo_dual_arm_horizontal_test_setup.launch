@@ -2,12 +2,6 @@
     <!-- This file is to be used in single-arm motion planning testing.-->
     <!-- This creates a single xArm7 robot in both gazebo and moveit, and launches the RViz/Gazebo windows. -->
 
-    <!-- startup simulated world -->
-    <include file="$(find xarm_gazebo)/launch/VADER_horizontal_2arms.launch">
-        <arg name="paused" value="false"/>
-        <arg name="gui" value="true"/>
-    </include>
-
     <!-- Properly kill gazebo clients after Ctrl+C by chasing it with a SIGKILL -->
     <node pkg="vader_planner" type="gazebo_assassin" name="gazebo_assassin" output="screen"/>
 
@@ -57,6 +51,13 @@
 
     <arg name="robot_dof" value="$(eval arg('dof') if arg('robot_type') == 'xarm' else 6)" />
     <arg name="robot_name" value="$(eval 'uf850' if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))" />
+
+    <!-- startup simulated world -->
+    <include file="$(find xarm_gazebo)/launch/VADER_horizontal_2arms.launch">
+        <arg name="paused" value="false"/>
+        <arg name="gui" value="true"/>
+        <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/>
+    </include>
 
     <!-- Remap the name space so it can send command to gazebo loaded controller -->
     <!-- this remap must appear BEFORE move_group launch -->

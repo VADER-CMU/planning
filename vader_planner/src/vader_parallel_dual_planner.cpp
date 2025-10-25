@@ -682,18 +682,18 @@ int main(int argc, char **argv)
 
     plannerServer.setUpSharedWorkspaceCollision(0.25);
     // ros::Duration(0.5).sleep();
-    plannerServer.homeGripper();
+    // plannerServer.homeGripper();
     // plannerServer.parallelMoveStorage();
 
-    tf2::Quaternion q;
-    double angle_rad = 20.0 * M_PI / 180.0;
-    q.setRPY(0.0, angle_rad, 0.0); // roll, pitch, yaw -> rotate 20 deg about Y (pitch)
-    q.normalize();
-    geometry_msgs::Quaternion quat_msg = tf2::toMsg(q);
-    geometry_msgs::Pose fruit_pose = makePose(0.7, 0.0, 0.5, quat_msg);
+    // tf2::Quaternion q;
+    // double angle_rad = 20.0 * M_PI / 180.0;
+    // q.setRPY(0.0, angle_rad, 0.0); // roll, pitch, yaw -> rotate 20 deg about Y (pitch)
+    // q.normalize();
+    // geometry_msgs::Quaternion quat_msg = tf2::toMsg(q);
+    // geometry_msgs::Pose fruit_pose = makePose(0.7, 0.0, 0.5, quat_msg);
     
-    plannerServer.generate_parametric_circle_poses(
-        fruit_pose, 0.2);
+    // plannerServer.generate_parametric_circle_poses(
+    //     fruit_pose, 0.2);
     // geometry_msgs::Pose target_pose = makePose(0.7, 0.0, 0.5, QUAT_TOWARD_PLANT());
     // plannerServer.gripperGrasp(target_pose, 0.0);
 
