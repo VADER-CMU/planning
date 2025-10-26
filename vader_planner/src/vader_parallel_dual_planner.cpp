@@ -113,6 +113,15 @@ public:
         move_group_.asyncExecute(plan);
     }
 
+    bool testPoseIK(const geometry_msgs::Pose& target_pose) {
+        moveit::core::RobotState state_copy = *move_group_.getCurrentState();
+        const moveit::core::JointModelGroup* joint_model_group = state_copy.getJointModelGroup(GRIPPER_MOVE_GROUP);
+
+        // Check if the pose is reachable
+        bool found_ik = state_copy.setFromIK(joint_model_group, target_pose, 10, 0.1);
+        return found_ik;
+    }
+
     moveit::planning_interface::MoveGroupInterface move_group_;
 };
 
@@ -164,6 +173,15 @@ public:
     // Execute asynchronously
     void execAsync(const moveit::planning_interface::MoveGroupInterface::Plan& plan) {
         move_group_.asyncExecute(plan);
+    }
+    
+    bool testPoseIK(const geometry_msgs::Pose& target_pose) {
+        moveit::core::RobotState state_copy = *move_group_.getCurrentState();
+        const moveit::core::JointModelGroup* joint_model_group = state_copy.getJointModelGroup(GRIPPER_MOVE_GROUP);
+
+        // Check if the pose is reachable
+        bool found_ik = state_copy.setFromIK(joint_model_group, target_pose, 10, 0.1);
+        return found_ik;
     }
 
     moveit::planning_interface::MoveGroupInterface move_group_;
@@ -317,7 +335,6 @@ public:
     void show_trails(const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_gripper,
                      const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_cutter)
     {
-        visual_tools->deleteAllMarkers();
 
         if (plan_gripper.has_value()) {
             const robot_state::JointModelGroup *joint_model_group_gripper = gripper_planner_.move_group_.getCurrentState()->getJointModelGroup(GRIPPER_MOVE_GROUP);
@@ -355,7 +372,7 @@ public:
         return pose;
     }
 
-    std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist)
+    std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator)
     {
         std::queue<geometry_msgs::Pose> pose_queue;
 
@@ -396,11 +413,11 @@ public:
             std::vector<double> angle_offsets;
             if (r_idx == 0)
             {
-                angle_offsets = {0, M_PI/6, 2*M_PI/6, 3*M_PI/6, 4*M_PI/6, 5*M_PI/6, 6*M_PI/6, 7*M_PI/6, 8*M_PI/6, 9*M_PI/6, 10*M_PI/6, 11*M_PI/6};
+                angle_offsets = {angle_offset_manipulator, angle_offset_manipulator + M_PI/6,  angle_offset_manipulator + 11*M_PI/6,  angle_offset_manipulator + 2*M_PI/6,  angle_offset_manipulator + 10*M_PI/6}; //3*M_PI/6, 4*M_PI/6, 5*M_PI/6, 6*M_PI/6, 7*M_PI/6, 8*M_PI/6, 9*M_PI/6,};
             }
             else
             {
-                angle_offsets = {0};
+                angle_offsets = {angle_offset_manipulator};
             }
             
             for (double offset : angle_offsets)
@@ -476,7 +493,6 @@ public:
     }
 
     bool gripperGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
-        // return false;
         auto plan = gripper_planner_.planCartesian(target_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper grasp movement.");
@@ -491,7 +507,28 @@ public:
     }
 
     bool parallelMovePregrasp(geometry_msgs::Pose& gripper_target_pose, geometry_msgs::Pose& cutter_target_pose){
-        return false;
+        setUpSharedWorkspaceCollision(0.25, 0.6);
+        bool success = true;
+        auto gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
+        if(gripper_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to pregrasp.");
+            return false;
+        }
+        show_trails(gripper_plan, std::nullopt);
+        auto cutter_plan_future = std::async(&VADERCutterPlanner::planRRT, &cutter_planner_, cutter_target_pose);
+        std::thread gripper_exec_thread([&]() {
+            gripper_planner_.execSync(gripper_plan.value());
+            ROS_WARN_NAMED("vader_planner", "Gripper movement to pregrasp finished.");
+        });
+        auto cutter_plan = cutter_plan_future.get();
+        if(cutter_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter movement to pregrasp.");
+            success = false;
+        }
+        gripper_exec_thread.join();
+        show_trails(std::nullopt, cutter_plan);
+        success &= cutter_planner_.execSync(cutter_plan.value());
+        return success;
     }
 
     bool parallelMoveStorage(){
@@ -551,11 +588,66 @@ public:
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
-                auto gripper_target_poses = generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25);
-                auto cutter_target_poses = generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25);
+                auto gripper_target_poses = generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, 2*M_PI/12);
+                auto cutter_target_poses = generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -3* M_PI/12);
+
+                // Test IK for each pose in the queue until we find one that is valid
+                bool found_valid_poses = false;
+                geometry_msgs::Pose gripper_pregrasp_pose;
+                while(!gripper_target_poses.empty())
+                {
+                    geometry_msgs::Pose gripper_test_pose = gripper_target_poses.front();
+                    gripper_target_poses.pop();
+
+                    bool gripper_ik_valid = gripper_planner_.testPoseIK(gripper_test_pose);
+
+                    if (gripper_ik_valid)
+                    {
+                        ROS_INFO("Found valid IK pose for gripper pregrasp.");
+                        gripper_pregrasp_pose = gripper_test_pose;
+                        visual_tools->deleteAllMarkers();
+                        visual_tools->publishAxisLabeled(gripper_test_pose, "Gripper Pregrasp", rvt::MEDIUM);
+                        
+
+                        found_valid_poses = true;
+                        break;
+                    }
+                }
+                if (!found_valid_poses)
+                {
+                    ROS_ERROR_NAMED("vader_planner", "Could not find valid IK pose for gripper pregrasp.");
+                    res.success = false;
+                    return res.success;
+                }
+                found_valid_poses = false;
+                geometry_msgs::Pose cutter_pregrasp_pose;
+                while(!cutter_target_poses.empty())
+                {
+                    geometry_msgs::Pose cutter_test_pose = cutter_target_poses.front();
+                    cutter_target_poses.pop();
+
+                    bool cutter_ik_valid = cutter_planner_.testPoseIK(cutter_test_pose);
+
+                    if (cutter_ik_valid)
+                    {
+                        ROS_INFO("Found valid IK pose for cutter pregrasp.");
+                        cutter_pregrasp_pose = cutter_test_pose;
+                        visual_tools->publishAxisLabeled(cutter_test_pose, "Cutter Pregrasp", rvt::MEDIUM);
+                        found_valid_poses = true;
+                        break;
+                    }
+                }
+                if (!found_valid_poses)
+                {
+                    ROS_ERROR_NAMED("vader_planner", "Could not find valid IK pose for cutter pregrasp.");
+                    res.success = false;
+                    return res.success;
+                }
+                visual_tools->trigger();
+
+                res.success = parallelMovePregrasp(gripper_pregrasp_pose, cutter_pregrasp_pose);
+
                 //TODO here, calculate desired pose based off of pepper estimate
-                // res.success = parallelMovePregrasp(req.gripper_target_pose, req.cutter_target_pose);
-                res.success = false; // Not implemented
                 break;
             }
             case vader_msgs::PlanningRequest::Request::GRIPPER_GRASP:{
@@ -608,24 +700,24 @@ public:
     //     cutter_planner_.execSync(cutter_plan);
     // }
 
-    void setUpSharedWorkspaceCollision(double divide_workspace_y) {
+    void setUpSharedWorkspaceCollision(double divide_workspace_y, double x_depth) {
         moveit_msgs::CollisionObject left_workspace;
         left_workspace.id = "left_workspace";
         left_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive left_primitive = makeBoxPrimitive(0.6, divide_workspace_y, 1);
+        shape_msgs::SolidPrimitive left_primitive = makeBoxPrimitive(x_depth, divide_workspace_y, 1);
         left_workspace.primitives.push_back(left_primitive);
 
-        geometry_msgs::Pose left_pose = makePose(0.3, divide_workspace_y / 2.0, 0.5, QUAT_IDENTITY());
+        geometry_msgs::Pose left_pose = makePose(x_depth / 2.0, divide_workspace_y / 2.0, 0.5, QUAT_IDENTITY());
         left_workspace.primitive_poses.push_back(left_pose);
         left_workspace.operation = left_workspace.ADD;
 
         moveit_msgs::CollisionObject right_workspace;
         right_workspace.id = "right_workspace";
         right_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive right_primitive = makeBoxPrimitive(0.6, 0.5 - divide_workspace_y, 1);
+        shape_msgs::SolidPrimitive right_primitive = makeBoxPrimitive(x_depth, 0.5 - divide_workspace_y, 1);
         right_workspace.primitives.push_back(right_primitive);
 
-        geometry_msgs::Pose right_pose = makePose(0.3, divide_workspace_y + (0.5 - divide_workspace_y) / 2.0, 0.5, QUAT_IDENTITY());
+        geometry_msgs::Pose right_pose = makePose(x_depth / 2.0, divide_workspace_y + (0.5 - divide_workspace_y) / 2.0, 0.5, QUAT_IDENTITY());
         right_workspace.primitive_poses.push_back(right_pose);
         right_workspace.operation = right_workspace.ADD;
 
@@ -694,7 +786,7 @@ int main(int argc, char **argv)
     // plannerServer.homeGripper();
     // plannerServer.homeCutter();
 
-    plannerServer.setUpSharedWorkspaceCollision(0.25);
+    // plannerServer.setUpSharedWorkspaceCollision(0.25);
     // ros::Duration(0.5).sleep();
     // plannerServer.homeGripper();
     // plannerServer.parallelMoveStorage();
