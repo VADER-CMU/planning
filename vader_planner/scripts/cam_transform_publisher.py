@@ -9,7 +9,7 @@ rospy.init_node('handeye_calibration_publisher')
 while rospy.get_time() == 0.0:
     pass
 
-ee_frame = "link_eef"
+ee_frame = "L_link_eef"
 cam_frame = "camera_link"
 calib = geometry_msgs.msg.TransformStamped()
 calib.header.stamp = rospy.Time.now()
@@ -28,4 +28,5 @@ calib.transform.rotation.z = .5
 calib.transform.rotation.w = .5
 broadcaster = tf2_ros.StaticTransformBroadcaster()
 broadcaster.sendTransform(calib)
+print("transform sent")
 rospy.spin()
