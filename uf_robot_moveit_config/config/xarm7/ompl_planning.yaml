@@ -129,7 +129,7 @@ planner_configs:
     delay_collision_checking: 1  # Stop collision checking as soon as C-free parent found. default 1
 
 xarm7:
-  default_planner_config: VADER_RRTstar
+  default_planner_config: RRTstar
   planner_configs:
     - SBL
     - EST
