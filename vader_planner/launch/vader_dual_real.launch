@@ -1,0 +1,37 @@
+<launch>
+    <arg name="robot_ip_1"/> 
+    <arg name="robot_ip_2"/>
+
+
+    <arg name="storage_bin_pose" value="0.2 -0.4 0.3 0 1 0 0"/><!-- xyz qx qy qz qw -->
+    <arg name="bin_xyz" value="0.2 -0.4 0.3"/>
+    <arg name="gripper_home_pose" value="0.6 0.0 0.3 0 0.707 0 0.707"/> <!-- xyz qx qy qz qw -->
+    <arg name="cutter_home_pose" value="0.6 0.5 0.3 0 0.707 0 0.707"/>
+    <arg name="arm_spacing" value="0.5"/>  
+
+    <arg name="arm_height_horizontal_mount" value="0.5"/>
+    <param name="storage_bin_pose" value="$(arg storage_bin_pose)"/>
+    <param name="gripper_home_pose" value="$(arg gripper_home_pose)"/>
+    <param name="cutter_home_pose" value="$(arg cutter_home_pose)"/>
+    <param name="arm_spacing" value="$(arg arm_spacing)"/>
+    <param name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
+
+
+    <arg name="robot_dof" default="7" />
+    <!-- load the default move_group planner (not xarm_simple_planner) -->
+    <arg name="show_rviz" default="true" />
+    <!-- NO_GUI_CTRL means that Rviz configuration is just for display purpose, no (Moveit) control panel loaded -->
+    <arg name="no_gui_plan" default="true" />
+    <include file="$(find uf_robot_moveit_config)/launch/dual_xarm7_moveit_realmove.launch">
+        <arg name="robot_ip_1" value="$(arg robot_ip_1)"/> 
+        <arg name="robot_ip_2" value="$(arg robot_ip_2)"/>
+
+        <arg name="arm_spacing" value="$(arg arm_spacing)"/>
+        <arg name="bin_xyz" value="$(arg bin_xyz)"/>
+        <arg name="horizontal_mount_arms" value="true"/>
+        <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
+
+    </include>
+    <node name="planner" pkg="vader_planner" type="vader_parallel_dual_planner" output="screen"/>
+
+</launch>
