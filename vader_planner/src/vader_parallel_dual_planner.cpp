@@ -23,7 +23,10 @@
 #include <tf/transform_datatypes.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 // include <xarm_moveit_servo/kinematic_constraints/utils.h>
+#include <moveit/trajectory_processing/iterative_time_parameterization.h>
 
+#include <moveit/robot_state/conversions.h>
+#include <trajectory_msgs/JointTrajectory.h>
 #include <geometric_shapes/shapes.h> // Include for cylinder shape
 #include <geometric_shapes/shape_operations.h>
 #include <geometry_msgs/Pose.h>
@@ -53,7 +56,7 @@
 
 /* Used for Cartesian path computation, please modify as needed: */
 const double jump_threshold = 0.0;
-const double eef_step = 0.005;
+const double eef_step = 0.01;//0.005;
 const double maxV_scale_factor = 0.3;
 const double cartesian_threshold = 0.9;
 
@@ -112,6 +115,89 @@ public:
             return plan;
         } else {
             ROS_ERROR_NAMED("vader_planner", "Gripper cartesian path computation failed with coverage fraction: %f", fraction);
+            return std::nullopt;
+        }
+    }
+
+    std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planGuidedCartesian(const geometry_msgs::Pose& target_pose) {
+        auto current_pose = move_group_.getCurrentPose().pose;
+
+        double dist = std::sqrt(
+            std::pow(target_pose.position.x - current_pose.position.x, 2) +
+            std::pow(target_pose.position.y - current_pose.position.y, 2) +
+            std::pow(target_pose.position.z - current_pose.position.z, 2)
+        );
+
+        int num_waypoints = static_cast<int>(dist / eef_step);
+
+        std::vector<geometry_msgs::Pose> waypoints;
+        for (int i = 0; i <= num_waypoints; ++i) {
+            double ratio = static_cast<double>(i) / num_waypoints;
+            geometry_msgs::Pose waypoint;
+            waypoint.position.x = current_pose.position.x + ratio * (target_pose.position.x - current_pose.position.x);
+            waypoint.position.y = current_pose.position.y + ratio * (target_pose.position.y - current_pose.position.y);
+            waypoint.position.z = current_pose.position.z + ratio * (target_pose.position.z - current_pose.position.z);
+
+            // Calculate intermediate quat
+            tf::Quaternion current_quat;
+            tf::quaternionMsgToTF(current_pose.orientation, current_quat);
+            tf::Quaternion target_quat;
+            tf::quaternionMsgToTF(target_pose.orientation, target_quat);
+            tf::Quaternion intermediate_quat = current_quat.slerp(target_quat, ratio);
+            tf::quaternionTFToMsg(intermediate_quat, waypoint.orientation);
+
+            waypoints.push_back(waypoint);
+        }
+
+        move_group_.setMaxVelocityScalingFactor(0.2);
+        move_group_.setMaxAccelerationScalingFactor(0.1);
+        moveit_msgs::RobotTrajectory trajectory;
+        double fraction = 0.0;
+        
+        while(fraction < cartesian_threshold) {
+            ROS_INFO_NAMED("vader_planner", "Retry with fraction: %f", fraction);
+            fraction = move_group_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+        }
+        for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
+            trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
+            if(i % 5 == 0){
+                std::cout << point.time_from_start << ", " ;
+            }
+            point.time_from_start = ros::Duration(i*0.05);
+        }
+
+        // robot_trajectory::RobotTrajectory rt(move_group_.getCurrentState()->getRobotModel(), GRIPPER_MOVE_GROUP);
+        // rt.setRobotTrajectoryMsg(*move_group_.getCurrentState(), trajectory); // computed_trajectory from computeCartesianPath()
+        // trajectory_processing::IterativeParabolicTimeParameterization iptp;
+        // bool iptp_success = iptp.computeTimeStamps(rt);
+
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        plan.trajectory_ = trajectory;
+        // if(iptp_success) {
+        //     rt.getRobotTrajectoryMsg(trajectory);
+        //     plan.trajectory_ = trajectory;
+        // } else {
+        //     // Handle error
+        //     ROS_WARN_NAMED("vader_planner", "Gripper: IPTP procedure error");
+        // }
+
+        // if (trajectory.points.size() >= 2)
+        // {
+        //     if ((trajectory.points.end() - 1)->time_from_start == (trajectory.points.end() - 2)->time_from_start)
+        //     {
+        //     ROS_WARN("last 2 waypoints time from start are equal");
+
+        //     auto& point = trajectory.points[trajectory.points.size() - 1];
+        //     point.time_from_start = point.time_from_start + ros::Duration(1e-3);
+        //     }
+        // }
+
+
+        if (fraction >= cartesian_threshold) {
+            ROS_INFO_NAMED("vader_planner", "Gripper guided cartesian path computed successfully.");
+            return plan;
+        } else {
+            ROS_ERROR_NAMED("vader_planner", "Gripper guided cartesian path computation failed with coverage fraction: %f", fraction);
             return std::nullopt;
         }
     }
@@ -267,7 +353,7 @@ public:
         move_group_.setMaxVelocityScalingFactor(maxV_scale_factor);
 
         moveit_msgs::RobotTrajectory trajectory;
-        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
         
         if (fraction >= cartesian_threshold) {
             ROS_INFO_NAMED("vader_planner", "Cutter cartesian path computed successfully.");
@@ -276,6 +362,65 @@ public:
             return plan;
         } else {
             ROS_ERROR_NAMED("vader_planner", "Cutter cartesian path computation failed with coverage fraction: %f", fraction);
+            return std::nullopt;
+        }
+    }
+
+
+    std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planGuidedCartesian(const geometry_msgs::Pose& target_pose) {
+        auto current_pose = move_group_.getCurrentPose().pose;
+
+        double dist = std::sqrt(
+            std::pow(target_pose.position.x - current_pose.position.x, 2) +
+            std::pow(target_pose.position.y - current_pose.position.y, 2) +
+            std::pow(target_pose.position.z - current_pose.position.z, 2)
+        );
+
+        int num_waypoints = static_cast<int>(dist / eef_step);
+
+        std::vector<geometry_msgs::Pose> waypoints;
+        for (int i = 1; i <= num_waypoints; ++i) {
+            double ratio = static_cast<double>(i) / num_waypoints;
+            geometry_msgs::Pose waypoint;
+            waypoint.position.x = current_pose.position.x + ratio * (target_pose.position.x - current_pose.position.x);
+            waypoint.position.y = current_pose.position.y + ratio * (target_pose.position.y - current_pose.position.y);
+            waypoint.position.z = current_pose.position.z + ratio * (target_pose.position.z - current_pose.position.z);
+
+            // Calculate intermediate quat
+            tf::Quaternion current_quat;
+            tf::quaternionMsgToTF(current_pose.orientation, current_quat);
+            tf::Quaternion target_quat;
+            tf::quaternionMsgToTF(target_pose.orientation, target_quat);
+            tf::Quaternion intermediate_quat = current_quat.slerp(target_quat, ratio);
+            tf::quaternionTFToMsg(intermediate_quat, waypoint.orientation);
+
+            waypoints.push_back(waypoint);
+        }
+
+        move_group_.setMaxVelocityScalingFactor(maxV_scale_factor);
+        moveit_msgs::RobotTrajectory trajectory;
+        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
+
+        robot_trajectory::RobotTrajectory rt(move_group_.getCurrentState()->getRobotModel(), CUTTER_MOVE_GROUP);
+        rt.setRobotTrajectoryMsg(*move_group_.getCurrentState(), trajectory); // computed_trajectory from computeCartesianPath()
+        trajectory_processing::IterativeParabolicTimeParameterization iptp;
+        bool iptp_success = iptp.computeTimeStamps(rt);
+
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        if(iptp_success) {
+            rt.getRobotTrajectoryMsg(trajectory);
+            plan.trajectory_ = trajectory;
+        } else {
+            // Handle error
+            ROS_WARN_NAMED("vader_planner", "Gripper: IPTP procedure error");
+        }
+
+
+        if (fraction >= cartesian_threshold) {
+            ROS_INFO_NAMED("vader_planner", "Gripper guided cartesian path computed successfully.");
+            return plan;
+        } else {
+            ROS_ERROR_NAMED("vader_planner", "Cutter guided cartesian path computation failed with coverage fraction: %f", fraction);
             return std::nullopt;
         }
     }
@@ -578,7 +723,7 @@ public:
 
         // Center of the box
         geometry_msgs::Pose box_pose;
-        box_pose.position.x = -0.42;
+        box_pose.position.x = -0.50;
         box_pose.position.y = 0.25;
         box_pose.position.z = 0.5; // center at z = 0.5
         box_pose.orientation.w = 1.0;
@@ -654,8 +799,8 @@ public:
         approach_pose.position.y += world_offset.y();
         approach_pose.position.z += world_offset.z();
 
-        auto plan = gripper_planner_.planRRT(approach_pose);
-        plan = gripper_planner_.planRRT(approach_pose);
+        auto plan = gripper_planner_.planGuidedCartesian(approach_pose);
+        // plan = gripper_planner_.planRRT(approach_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper grasp movement.");
             return false;
@@ -707,7 +852,8 @@ public:
         approach_pose.position.z += world_offset.z();
         visual_tools->publishAxisLabeled(approach_pose, "Cutter Approach Pose", rvt::SMALL);
         visual_tools->trigger();
-        auto plan = cutter_planner_.planRRT(approach_pose);
+        // auto plan = cutter_planner_.planRRT(approach_pose);
+        auto plan = cutter_planner_.planGuidedCartesian(approach_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter grasp movement.");
             return false;
@@ -717,7 +863,7 @@ public:
 
         // Move cartesian to actual target pose
         if(success) {
-            auto cartesian_plan = cutter_planner_.planCartesian(target_pose);
+            auto cartesian_plan = cutter_planner_.planGuidedCartesian(target_pose);// planCartesian(target_pose);
             if(cartesian_plan == std::nullopt) {
                 ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter final approach movement.");
                 return false;
@@ -770,9 +916,9 @@ public:
         // show_trails(std::nullopt, cutter_plan);
         // success &= cutter_planner_.execSync(cutter_plan.value());
 
-        auto gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
+        auto gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);// planRRT(gripper_target_pose);
 
-        gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
+        // gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
         if(gripper_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to pregrasp.");
             return false;
@@ -780,9 +926,9 @@ public:
         show_trails(gripper_plan, std::nullopt);
         success &= gripper_planner_.execSync(gripper_plan.value());
 
-        auto cutter_plan = cutter_planner_.planRRT(cutter_target_pose);
+        auto cutter_plan = cutter_planner_.planGuidedCartesian(cutter_target_pose);
 
-        cutter_plan = cutter_planner_.planRRT(cutter_target_pose);
+        // cutter_plan = cutter_planner_.planRRT(cutter_target_pose);
         if(cutter_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter movement to pregrasp.");
             return false;
@@ -865,7 +1011,7 @@ public:
                 auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -3* M_PI/12);
                 visual_tools->trigger();
                 // setUpSharedWorkspaceCollision(math.min(0.4, math.max(0.1, pepper_estimate.fruit_data.pose.position.y)), 0.6);
-                setUpSharedWorkspaceCollision(0.15, 0.6);
+                // setUpSharedWorkspaceCollision(0.15, 0.6);
 
 
                 // Test IK for each pose in the queue until we find one that is valid
