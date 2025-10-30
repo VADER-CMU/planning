@@ -136,7 +136,7 @@ public:
         int num_waypoints = static_cast<int>(dist / eef_step);
 
         std::vector<geometry_msgs::Pose> waypoints;
-        for (int i = 0; i <= num_waypoints; ++i) {
+        for (int i = 2; i <= num_waypoints; ++i) {
             double ratio = static_cast<double>(i) / num_waypoints;
             geometry_msgs::Pose waypoint;
             waypoint.position.x = current_pose.position.x + ratio * (target_pose.position.x - current_pose.position.x);
@@ -165,11 +165,12 @@ public:
         }
         for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
             trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
-            if(i % 5 == 0){
-                std::cout << point.time_from_start << ", " ;
-            }
-            point.time_from_start = ros::Duration(i*0.05);
+            // if(i % 5 == 0){
+            std::cout << point.time_from_start << ", " ;
+            // }
+            // point.time_from_start = ros::Duration(i*0.05);
         }
+        std::cout << "\n";
 
         // robot_trajectory::RobotTrajectory rt(move_group_.getCurrentState()->getRobotModel(), GRIPPER_MOVE_GROUP);
         // rt.setRobotTrajectoryMsg(*move_group_.getCurrentState(), trajectory); // computed_trajectory from computeCartesianPath()
@@ -450,7 +451,7 @@ public:
         int num_waypoints = static_cast<int>(dist / eef_step);
 
         std::vector<geometry_msgs::Pose> waypoints;
-        for (int i = 0; i <= num_waypoints; ++i) {
+        for (int i = 2; i <= num_waypoints; ++i) {
             double ratio = static_cast<double>(i) / num_waypoints;
             geometry_msgs::Pose waypoint;
             waypoint.position.x = current_pose.position.x + ratio * (target_pose.position.x - current_pose.position.x);
@@ -482,7 +483,7 @@ public:
             if(i % 5 == 0){
                 std::cout << point.time_from_start << ", " ;
             }
-            point.time_from_start = ros::Duration(i*0.05);
+            // point.time_from_start = ros::Duration(i*0.05);
         }
 
         // robot_trajectory::RobotTrajectory rt(move_group_.getCurrentState()->getRobotModel(), GRIPPER_MOVE_GROUP);
