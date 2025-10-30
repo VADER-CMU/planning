@@ -1083,16 +1083,18 @@ public:
         // success &= cutter_planner_.execSync(cutter_plan.value());
 
 
-        auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
+        // auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
 
-        gripper_plan = gripper_planner_.planRRT(storageBinPose);
-        if(gripper_plan == std::nullopt) {
-            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage.");
-            return false;
-        }
-        show_trails(gripper_plan, std::nullopt);
-        success &= gripper_planner_.execSync(gripper_plan.value());
-
+        // gripper_plan = gripper_planner_.planRRT(storageBinPose);
+        // auto gripper_plan = gripper_planner_.planToJointPositions(gripper_arm_home_joint_positions);
+        // gripper_plan = gripper_planner_.planToJointPositions(gripper_arm_storage_joint_positions);
+        // if(gripper_plan == std::nullopt) {
+        //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage.");
+        //     return false;
+        // }
+        // show_trails(gripper_plan, std::nullopt);
+        // success &= gripper_planner_.execSync(gripper_plan.value());
+        success = homeGripper();
         success &= homeCutter();
         return success;
     }
