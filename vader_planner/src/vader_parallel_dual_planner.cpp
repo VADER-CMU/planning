@@ -814,7 +814,6 @@ public:
         ground_plane.primitives.push_back(ground_primitive);
         ground_plane.primitive_poses.push_back(ground_pose);
         ground_plane.operation = moveit_msgs::CollisionObject::ADD;
-        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
         // Add the ground plane to the planning scene
         planning_scene_interface.applyCollisionObject(ground_plane);
@@ -846,7 +845,6 @@ public:
         warthog_body.primitive_poses.push_back(box_pose);
         warthog_body.operation = warthog_body.ADD;
 
-        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
         // Define an orange bright color as std_msgs::ColorRGBA
         std_msgs::ColorRGBA orange_bright;
         orange_bright.r = 1.0f;
@@ -883,31 +881,39 @@ public:
         spinner.stop();
     }
 
-    bool homeGripper(){
+    int homeGripper(){
         // auto plan = gripper_planner_.planRRT(gripperHomePose);
         auto plan = gripper_planner_.planToJointPositions(gripper_arm_home_joint_positions);
         plan = gripper_planner_.planToJointPositions(gripper_arm_home_joint_positions);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper home movement.");
-            return false;
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_RRT_TIMEOUT;
         }
         show_trails(plan, std::nullopt);
-        return gripper_planner_.execSync(plan.value());
+        bool success = gripper_planner_.execSync(plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
+        return vader_msgs::PlanningRequest::Response::SUCCESS;
     }
 
-    bool homeCutter(){
+    int homeCutter(){
         // auto plan = cutter_planner_.planRRT(cutterHomePose);
         auto plan = cutter_planner_.planToJointPositions(cutter_arm_home_joint_positions);
         plan = cutter_planner_.planToJointPositions(cutter_arm_home_joint_positions);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
-            return false;
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_RRT_TIMEOUT;
         }
         show_trails(std::nullopt, plan);
-        return cutter_planner_.execSync(plan.value());
+        bool success = cutter_planner_.execSync(plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+        }
+        return vader_msgs::PlanningRequest::Response::SUCCESS;
     }
 
-    bool gripperGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
+    int gripperGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
         // Translate the target pose along its local -Z axis by final_approach_dist
         tf::Quaternion tq;
         tf::quaternionMsgToTF(target_pose.orientation, tq);
@@ -921,10 +927,14 @@ public:
         // plan = gripper_planner_.planRRT(approach_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper grasp movement.");
-            return false;
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
         }
         show_trails(plan, std::nullopt);
         bool success = gripper_planner_.execSync(plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
+        return vader_msgs::PlanningRequest::Response::SUCCESS;
 
         // // Move cartesian to actual target pose
         // if(success) {
@@ -936,10 +946,9 @@ public:
         //     show_trails(cartesian_plan, std::nullopt);
         //     success &= gripper_planner_.execSync(cartesian_plan.value());
         // }
-        return success;
     }
 
-    bool cutterGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
+    int cutterGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
         //Rotate target
 
         // Create a rotation matrix for a 90-degree clockwise rotation around the z-axis
@@ -974,25 +983,31 @@ public:
         auto plan = cutter_planner_.planGuidedCartesian(approach_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter grasp movement.");
-            return false;
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
         }
         show_trails(std::nullopt, plan);
         bool success = cutter_planner_.execSync(plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+        }
 
         // Move cartesian to actual target pose
         if(success) {
             auto cartesian_plan = cutter_planner_.planGuidedCartesian(target_pose);// planCartesian(target_pose);
             if(cartesian_plan == std::nullopt) {
                 ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter final approach movement.");
-                return false;
+                return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
             }
             show_trails(std::nullopt, cartesian_plan);
-            success &= cutter_planner_.execSync(cartesian_plan.value());
+            success = cutter_planner_.execSync(cartesian_plan.value());
+            if(!success) {
+                return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+            }
         }
-        return success;
+        return vader_msgs::PlanningRequest::Response::SUCCESS;
     }
 
-    bool parallelMovePregrasp(geometry_msgs::Pose& gripper_target_pose, geometry_msgs::Pose& cutter_target_pose){
+    int parallelMovePregrasp(geometry_msgs::Pose& gripper_target_pose, geometry_msgs::Pose& cutter_target_pose){
         bool success = true;
         // auto cutter_plan = cutter_planner_.planRRT(cutter_target_pose);
         // if(cutter_plan == std::nullopt) {
@@ -1040,10 +1055,13 @@ public:
         // gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
         if(gripper_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to pregrasp.");
-            return false;
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
         }
         show_trails(gripper_plan, std::nullopt);
-        success &= gripper_planner_.execSync(gripper_plan.value());
+        success = gripper_planner_.execSync(gripper_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
 
         auto cutter_plan = cutter_planner_.planGuidedCartesian(cutter_target_pose);
         cutter_plan = cutter_planner_.planGuidedCartesian(cutter_target_pose);
@@ -1051,16 +1069,19 @@ public:
         // // cutter_plan = cutter_planner_.planRRT(cutter_target_pose);
         if(cutter_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter movement to pregrasp.");
-            return false;
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
         }
         show_trails(std::nullopt, cutter_plan);
-        success &= cutter_planner_.execSync(cutter_plan.value());
-        return success;
+        success = cutter_planner_.execSync(cutter_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+        }
+        return vader_msgs::PlanningRequest::Response::SUCCESS;
     }
 
-    bool parallelMoveStorage(){
+    int parallelMoveStorage(){
 
-        bool success = true;
+        int returnCode = 0;
         // auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
         // if(gripper_plan == std::nullopt) {
         //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage bin.");
@@ -1094,9 +1115,12 @@ public:
         // }
         // show_trails(gripper_plan, std::nullopt);
         // success &= gripper_planner_.execSync(gripper_plan.value());
-        success = homeGripper();
-        success &= homeCutter();
-        return success;
+        returnCode = homeGripper();
+        if (returnCode != 0) {
+            return returnCode;
+        }
+        returnCode = homeCutter();
+        return returnCode;
     }
 
     bool planningServiceHandler(vader_msgs::PlanningRequest::Request &req,
@@ -1106,13 +1130,13 @@ public:
             case vader_msgs::PlanningRequest::Request::HOME_CUTTER:{
                 setUpSharedWorkspaceCollision(0.15, 0.6);
 
-                res.success = homeCutter();
+                res.result = homeCutter();
                 break;
             }
             case vader_msgs::PlanningRequest::Request::HOME_GRIPPER:{
                 setUpSharedWorkspaceCollision(0.15, 0.6);
 
-                res.success = homeGripper();
+                res.result = homeGripper();
                 break;
             }
             case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_PREGRASP:
@@ -1161,7 +1185,9 @@ public:
                 if (!found_valid_poses)
                 {
                     ROS_ERROR_NAMED("vader_planner", "Could not find valid IK pose for gripper pregrasp.");
+                    res.result = vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_NO_IK_SOLUTION_FOUND;
                     res.success = false;
+                    ROS_WARN_NAMED("vader_planner", "Planning service completed with result code: %d", res.result);
                     return res.success;
                 }
                 found_valid_poses = false;
@@ -1185,11 +1211,13 @@ public:
                 if (!found_valid_poses)
                 {
                     ROS_ERROR_NAMED("vader_planner", "Could not find valid IK pose for cutter pregrasp.");
+                    res.result = vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_NO_IK_SOLUTION_FOUND;
                     res.success = false;
+                    ROS_WARN_NAMED("vader_planner", "Planning service completed with result code: %d", res.result);
                     return res.success;
                 }
                 visual_tools->trigger();
-                res.success = parallelMovePregrasp(gripper_pregrasp_pose, cutter_pregrasp_pose);
+                res.result = parallelMovePregrasp(gripper_pregrasp_pose, cutter_pregrasp_pose);
                 // setUpSharedWorkspaceCollision(0.25, 0.4);
                 break;
             }
@@ -1234,7 +1262,9 @@ public:
                 if (!found_valid_poses)
                 {
                     ROS_ERROR_NAMED("vader_planner", "Could not find valid IK pose for gripper pregrasp.");
+                    res.result = vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_NO_IK_SOLUTION_FOUND;
                     res.success = false;
+                    ROS_WARN_NAMED("vader_planner", "Planning service completed with result code: %d", res.result);
                     return res.success;
                 }
                 visual_tools->trigger();
@@ -1250,7 +1280,7 @@ public:
                 gripper_pregrasp_pose.position.z += world_offset.z();
                 visual_tools->publishAxisLabeled(gripper_pregrasp_pose, "Gripper Grasp Pose", rvt::MEDIUM);
 
-                res.success = gripperGrasp(gripper_pregrasp_pose, final_approach_dist);
+                res.result = gripperGrasp(gripper_pregrasp_pose, final_approach_dist);
 
 
                 // res.success = gripperGrasp(req., req.final_approach_dist);
@@ -1297,7 +1327,9 @@ public:
                 if (!found_valid_poses)
                 {
                     ROS_ERROR_NAMED("vader_planner", "Could not find valid IK pose for cutter pregrasp.");
+                    res.result = vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_NO_IK_SOLUTION_FOUND;
                     res.success = false;
+                    ROS_WARN_NAMED("vader_planner", "Planning service completed with result code: %d", res.result);
                     return res.success;
                 }
                 visual_tools->trigger();
@@ -1312,20 +1344,22 @@ public:
                 visual_tools->publishAxisLabeled(cutter_pregrasp_pose, "Cutter Grasp Pose", rvt::MEDIUM);
 
                 // Plan a Cartesian approach to the target pose
-                res.success = cutterGrasp(cutter_pregrasp_pose, final_approach_dist);
+                res.result = cutterGrasp(cutter_pregrasp_pose, final_approach_dist);
 
                 break;
             }
             case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_STORAGE:{
-                res.success = parallelMoveStorage();
+                res.result = parallelMoveStorage();
                 break;
             }
             default:{
                 ROS_ERROR_NAMED("vader_planner", "Unknown planning mode requested: %d", req.mode);
-                res.success = false;
+                res.result = vader_msgs::PlanningRequest::Response::FAIL_UNKNOWN;
                 break;
             }
         }
+        res.success = (res.result == vader_msgs::PlanningRequest::Response::SUCCESS);
+        ROS_WARN_NAMED("vader_planner", "Planning service completed with result code: %d", res.result);
         return res.success;
     }
 
@@ -1375,7 +1409,6 @@ public:
         right_workspace.primitive_poses.push_back(right_pose);
         right_workspace.operation = right_workspace.ADD;
 
-        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
         planning_scene_interface.applyCollisionObject(left_workspace, COLOR_ORANGE_TRANSLUCENT());
         planning_scene_interface.applyCollisionObject(right_workspace, COLOR_BLUE_TRANSLUCENT());
@@ -1417,6 +1450,8 @@ private:
     ros::ServiceServer planning_service;
 
     planning_scene_monitor::PlanningSceneMonitorPtr psm;
+
+    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
     VADERGripperPlanner gripper_planner_;
     VADERCutterPlanner cutter_planner_;
     ros::AsyncSpinner spinner;

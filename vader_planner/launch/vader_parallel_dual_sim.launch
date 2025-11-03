@@ -13,12 +13,17 @@
     <param name="arm_spacing" value="$(arg arm_spacing)"/>
     <param name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
     <!-- Include the MoveIt RViz dual arm test setup launch file -->
-    <include file="$(find vader_planner)/launch/tests/setups/_moveit_gazebo_dual_arm_horizontal_test_setup.launch">
+    <!-- <include file="$(find vader_planner)/launch/tests/setups/_moveit_gazebo_dual_arm_horizontal_test_setup.launch">
         <arg name="bin_xyz" value="0.0 -0.3 0.0"/>
         <arg name="arm_spacing" value="$(arg arm_spacing)"/>
         <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
         <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/>
 
+        <arg name="no_gui_plan" value="true" />
+    </include> -->
+    <include file="$(find vader_planner)/launch/tests/setups/_moveit_rviz_dual_arm_horizontal_test_setup.launch">
+        <arg name="arm_spacing" value="$(arg arm_spacing)"/>
+        <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
         <arg name="no_gui_plan" value="true" />
     </include>
 

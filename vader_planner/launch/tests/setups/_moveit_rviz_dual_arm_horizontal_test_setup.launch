@@ -52,7 +52,7 @@
     <arg name="bin_xyz" value="$(arg bin_xyz)"/>
     <arg name="horizontal_mount_arms" value="true"/>
     <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
-    
+    <arg name="add_vader_eef" value="true" />
     <arg name="dof" value="$(arg dof)" />
     <arg name="robot_type" value="$(arg robot_type)" />
     <arg name="robot_sn" value="$(arg robot_sn)"/>
