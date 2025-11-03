@@ -693,14 +693,11 @@ public:
           cutter_planner_(visual_tools) {
 
         planning_scene_diff_pub =
-            node_handle.advertise<moveit_msgs::PlanningScene>("planning_scene", 1);
+            node_handle.advertise<moveit_msgs::PlanningScene>("planning_scene", 10);
 
 
         display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true); /*necessary?*/
         psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
-
-        setupWorkspaceCollision();
-        add_ground_plane_collision();
 
         // Load pose strings (expected "x y z qx qy qz qw" or "x,y,z,qx,qy,qz,qw") and other params from ROS parameter server
         auto parseXYZQuat = [&](const std::string &s, geometry_msgs::Pose &pose) -> bool {
@@ -786,6 +783,8 @@ public:
 
         //Register service handler
 
+        setupWorkspaceCollision();
+        add_ground_plane_collision();
         planning_service = node_handle.advertiseService("vader_planning_service", &VADERPlannerServer::planningServiceHandler, this);
     }
 
@@ -1363,76 +1362,21 @@ public:
         return res.success;
     }
 
-
-    // void parallelPlanExecuteDemo(){
-    //     ROS_WARN_NAMED("vader_planner", "Starting parallel planning and execution demo in ten seconds...");
-
-    //     ros::Duration(10.0).sleep();
-    //     // Define target poses for gripper and cutter
-    //     geometry_msgs::Pose gripper_target_pose = makePose(0.5, 0.25, 0.4, QUAT_TOWARD_PLANT());
-    //     geometry_msgs::Pose cutter_target_pose = makePose(0.5, 0.5, 0.4, QUAT_TOWARD_PLANT());
-
-    //     // Plan for gripper
-    //     auto gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
-
-    //     ROS_WARN_NAMED("vader_planner", "Gripper plan computed, executing asynchronously.");
-        
-    //     auto cutter_plan_future = std::async(&VADERCutterPlanner::planRRT, &cutter_planner_, cutter_target_pose);
-    //     std::thread gripper_exec_thread([&]() {
-    //         gripper_planner_.execSync(gripper_plan);
-    //         ROS_WARN_NAMED("vader_planner", "Gripper movement finished.");
-    //     });
-    //     auto cutter_plan = cutter_plan_future.get();
-    //     gripper_exec_thread.join();
-
-    //     cutter_planner_.execSync(cutter_plan);
-    // }
-
     void setUpSharedWorkspaceCollision(double divide_workspace_y, double x_depth) {
-        moveit_msgs::CollisionObject left_workspace;
-        left_workspace.id = "left_workspace";
-        left_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive left_primitive = makeBoxPrimitive(x_depth, divide_workspace_y, 1);
-        left_workspace.primitives.push_back(left_primitive);
+        moveit_msgs::CollisionObject workspace_divide_wall;
+        workspace_divide_wall.header.frame_id = "world";
+        workspace_divide_wall.id = "workspace_divide_wall";
 
-        geometry_msgs::Pose left_pose = makePose(x_depth / 2.0, divide_workspace_y / 2.0, 0.5, QUAT_IDENTITY());
-        left_workspace.primitive_poses.push_back(left_pose);
-        left_workspace.operation = left_workspace.ADD;
+        shape_msgs::SolidPrimitive wall_primitive = makeBoxPrimitive(x_depth, 0.01, 1.0);
+        geometry_msgs::Pose wall_pose = makePose(x_depth / 2.0, divide_workspace_y, 0.5, QUAT_IDENTITY());
 
-        moveit_msgs::CollisionObject right_workspace;
-        right_workspace.id = "right_workspace";
-        right_workspace.header.frame_id = "world";
-        shape_msgs::SolidPrimitive right_primitive = makeBoxPrimitive(x_depth, 0.5 - divide_workspace_y, 1);
-        right_workspace.primitives.push_back(right_primitive);
+        workspace_divide_wall.primitives.push_back(wall_primitive);
+        workspace_divide_wall.primitive_poses.push_back(wall_pose);
+        workspace_divide_wall.operation = workspace_divide_wall.ADD;
 
-        geometry_msgs::Pose right_pose = makePose(x_depth / 2.0, divide_workspace_y + (0.5 - divide_workspace_y) / 2.0, 0.5, QUAT_IDENTITY());
-        right_workspace.primitive_poses.push_back(right_pose);
-        right_workspace.operation = right_workspace.ADD;
+        // Add the single thin wall to the planning scene (no ACM / allowed entries changes)
+        planning_scene_interface.applyCollisionObject(workspace_divide_wall, COLOR_BLUE_TRANSLUCENT());
 
-
-        planning_scene_interface.applyCollisionObject(left_workspace, COLOR_ORANGE_TRANSLUCENT());
-        planning_scene_interface.applyCollisionObject(right_workspace, COLOR_BLUE_TRANSLUCENT());
-
-        
-
-        // Allow collision between box and a specific link (e.g. "wrist_3_link")
-        std::vector<std::pair<std::string, std::string>> allowed_entries;
-        for (const auto& link_name_suffix : LINK_SUFFIXES) {
-            std::string gripper_link_name = "L_" + link_name_suffix;
-            std::string cutter_link_name = "R_" + link_name_suffix;
-            allowed_entries.emplace_back("left_workspace", gripper_link_name);
-            allowed_entries.emplace_back("right_workspace", cutter_link_name);
-        }
-        allowed_entries.emplace_back("vader_gripper_base_link", "left_workspace");
-        allowed_entries.emplace_back("fing_1", "left_workspace");
-        allowed_entries.emplace_back("fing_2", "left_workspace");
-        allowed_entries.emplace_back("thumb_1", "left_workspace");
-        allowed_entries.emplace_back("vader_cutter_base_link", "right_workspace");
-        allowed_entries.emplace_back("blade_moving", "right_workspace");
-        allowed_entries.emplace_back("blade_stationary", "right_workspace");
-        
-
-        setACMEntries(psm, planning_scene_diff_pub, allowed_entries);
         ROS_WARN_NAMED("vader_planner", "Shared workspace demo collision objs setup complete.");
     }
 

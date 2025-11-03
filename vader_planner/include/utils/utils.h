@@ -86,31 +86,32 @@ inline shape_msgs::SolidPrimitive makeBoxPrimitive(double x, double y, double z)
     return box;
 }
 
-inline void setACMEntries(
-    planning_scene_monitor::PlanningSceneMonitorPtr& psm,
-    ros::Publisher& planning_scene_diff_pub,
-    const std::vector<std::pair<std::string, std::string>>& allowed_entries)
-{
-    if (!psm->getPlanningScene())
-    {
-        ROS_ERROR("PlanningSceneMonitor not properly initialized.");
-        return;
-    }
-    planning_scene_monitor::LockedPlanningSceneRW scene(psm);
-    collision_detection::AllowedCollisionMatrix& acm = scene->getAllowedCollisionMatrixNonConst();
+//THIS CAUSES SYNCHRONIATION ISSUES DURING EXECUTION due to stale planning scene. Do not use!!
+// inline void setACMEntries(
+//     planning_scene_monitor::PlanningSceneMonitorPtr& psm,
+//     ros::Publisher& planning_scene_diff_pub,
+//     const std::vector<std::pair<std::string, std::string>>& allowed_entries)
+// {
+//     if (!psm->getPlanningScene())
+//     {
+//         ROS_ERROR("PlanningSceneMonitor not properly initialized.");
+//         return;
+//     }
+//     planning_scene_monitor::LockedPlanningSceneRW scene(psm);
+//     collision_detection::AllowedCollisionMatrix& acm = scene->getAllowedCollisionMatrixNonConst();
 
-    for (const auto& entry : allowed_entries) {
-        acm.setEntry(entry.first, entry.second, true);
-    }
+//     for (const auto& entry : allowed_entries) {
+//         acm.setEntry(entry.first, entry.second, true);
+//     }
 
-    scene->getCurrentStateNonConst().update();
-    psm->triggerSceneUpdateEvent(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE);
+//     scene->getCurrentStateNonConst().update();
+//     psm->triggerSceneUpdateEvent(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE);
 
-    moveit_msgs::PlanningScene ps_msg;
-    scene->getPlanningSceneMsg(ps_msg);
-    ps_msg.is_diff = true;
-    planning_scene_diff_pub.publish(ps_msg);
-}
+//     moveit_msgs::PlanningScene ps_msg;
+//     scene->getPlanningSceneMsg(ps_msg);
+//     ps_msg.is_diff = true;
+//     planning_scene_diff_pub.publish(ps_msg);
+// }
 
 //--------------------------------------------Moveit Collision Object Functions--------------------------------------------//
 
