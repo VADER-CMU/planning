@@ -1115,7 +1115,7 @@ public:
         // show_trails(gripper_plan, std::nullopt);
         // success &= gripper_planner_.execSync(gripper_plan.value());
         returnCode = homeGripper();
-        if (returnCode != 0) {
+        if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
             return returnCode;
         }
         returnCode = homeCutter();
