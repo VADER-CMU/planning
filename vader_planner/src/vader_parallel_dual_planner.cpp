@@ -68,6 +68,8 @@ const std::string CUTTER_MOVE_GROUP = "R_xarm7";
 const std::vector<double> gripper_arm_home_joint_positions = {84.6 * (M_PI / 180.0), -85.2 * (M_PI / 180.0), -13.2 * (M_PI / 180.0), 63.6 * (M_PI / 180.0), 22.5 * (M_PI / 180.0), 21.1 * (M_PI / 180.0), 64.0 * (M_PI / 180.0)};
 const std::vector<double> cutter_arm_home_joint_positions = {-84.6 * (M_PI / 180.0), -85.2 * (M_PI / 180.0), 13.2 * (M_PI / 180.0), 63.6 * (M_PI / 180.0), -22.5 * (M_PI / 180.0), 21.1 * (M_PI / 180.0), 210.5 * (M_PI / 180.0)};
 
+const std::vector<double> gripper_arm_storage_joint_positions = {80 * (M_PI / 180.0), -39.9 * (M_PI / 180.0), 11.2 * (M_PI / 180.0), 31.4 * (M_PI / 180.0), 0 * (M_PI / 180.0), 68.3 * (M_PI / 180.0), 84.7 * (M_PI / 180.0)};
+
 namespace rvt = rviz_visual_tools;
 
 
@@ -95,6 +97,19 @@ static geometry_msgs::Pose _get_pose_from_pos_and_quat(tf::Vector3 &pos, tf::Qua
     return pose;
 }
 
+geometry_msgs::Pose translateByLocalZ(const geometry_msgs::Pose& original_pose, double distance) {
+    tf::Quaternion quat;
+    tf::quaternionMsgToTF(original_pose.orientation, quat);
+    tf::Vector3 local_z(0.0, 0.0, 1.0);
+    tf::Vector3 world_offset = tf::quatRotate(quat, local_z) * distance;
+
+    geometry_msgs::Pose new_pose = original_pose;
+    new_pose.position.x += world_offset.x();
+    new_pose.position.y += world_offset.y();
+    new_pose.position.z += world_offset.z();
+
+    return new_pose;
+}
 class VADERGripperPlanner {
 public:
     VADERGripperPlanner(moveit_visual_tools::MoveItVisualToolsPtr visual_tools_in)
@@ -102,29 +117,28 @@ public:
             ROS_INFO_NAMED("vader_planner", "Initialized VADER Gripper Planner");
         }
 
-    // Plan a Cartesian path
-    std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const geometry_msgs::Pose& target_pose) {
-        move_group_.setStartStateToCurrentState();
-        
-        std::vector<geometry_msgs::Pose> waypoints;
-        waypoints.push_back(target_pose);
-        move_group_.setMaxVelocityScalingFactor(maxV_scale_factor);
+    // // Plan a Cartesian path
+    // std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const geometry_msgs::Pose& target_pose) {
+    //     std::vector<geometry_msgs::Pose> waypoints;
+    //     waypoints.push_back(target_pose);
+    //     move_group_.setMaxVelocityScalingFactor(maxV_scale_factor);
 
-        moveit_msgs::RobotTrajectory trajectory;
-        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
+    //     moveit_msgs::RobotTrajectory trajectory;
+    //     double fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
         
-        if (fraction >= cartesian_threshold) {
-            ROS_INFO_NAMED("vader_planner", "Gripper cartesian path computed successfully.");
-            moveit::planning_interface::MoveGroupInterface::Plan plan;
-            plan.trajectory_ = trajectory;
-            return plan;
-        } else {
-            ROS_ERROR_NAMED("vader_planner", "Gripper cartesian path computation failed with coverage fraction: %f", fraction);
-            return std::nullopt;
-        }
-    }
+    //     if (fraction >= cartesian_threshold) {
+    //         ROS_INFO_NAMED("vader_planner", "Gripper cartesian path computed successfully.");
+    //         moveit::planning_interface::MoveGroupInterface::Plan plan;
+    //         plan.trajectory_ = trajectory;
+    //         return plan;
+    //     } else {
+    //         ROS_ERROR_NAMED("vader_planner", "Gripper cartesian path computation failed with coverage fraction: %f", fraction);
+    //         return std::nullopt;
+    //     }
+    // }
 
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planGuidedCartesian(const geometry_msgs::Pose& target_pose) {
+        move_group_.setStartStateToCurrentState();
         auto current_pose = move_group_.getCurrentPose().pose;
 
         double dist = std::sqrt(
@@ -165,39 +179,15 @@ public:
         }
         for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
             trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
-            // if(i % 5 == 0){
-            std::cout << point.time_from_start << ", " ;
-            // }
+            if(i % 5 == 0){
+                std::cout << point.time_from_start << ", " ;
+            }
             // point.time_from_start = ros::Duration(i*0.05);
         }
         std::cout << "\n";
 
-        // robot_trajectory::RobotTrajectory rt(move_group_.getCurrentState()->getRobotModel(), GRIPPER_MOVE_GROUP);
-        // rt.setRobotTrajectoryMsg(*move_group_.getCurrentState(), trajectory); // computed_trajectory from computeCartesianPath()
-        // trajectory_processing::IterativeParabolicTimeParameterization iptp;
-        // bool iptp_success = iptp.computeTimeStamps(rt);
-
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         plan.trajectory_ = trajectory;
-        // if(iptp_success) {
-        //     rt.getRobotTrajectoryMsg(trajectory);
-        //     plan.trajectory_ = trajectory;
-        // } else {
-        //     // Handle error
-        //     ROS_WARN_NAMED("vader_planner", "Gripper: IPTP procedure error");
-        // }
-
-        // if (trajectory.points.size() >= 2)
-        // {
-        //     if ((trajectory.points.end() - 1)->time_from_start == (trajectory.points.end() - 2)->time_from_start)
-        //     {
-        //     ROS_WARN("last 2 waypoints time from start are equal");
-
-        //     auto& point = trajectory.points[trajectory.points.size() - 1];
-        //     point.time_from_start = point.time_from_start + ros::Duration(1e-3);
-        //     }
-        // }
-
 
         if (fraction >= cartesian_threshold) {
             ROS_INFO_NAMED("vader_planner", "Gripper guided cartesian path computed successfully.");
@@ -210,8 +200,6 @@ public:
 
     // Plan using RRT (default MoveIt planner)
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planRRT(const geometry_msgs::Pose& target_pose) {
-        move_group_.setStartStateToCurrentState();
-
         auto curr_pose = move_group_.getCurrentPose().pose;
 
         ROS_WARN_NAMED("vader_planner", "current pose: position=(%f, %f, %f) quat=(%f, %f, %f, %f)",
@@ -222,78 +210,73 @@ public:
         ROS_WARN_NAMED("vader_planner", "Planning for gripper...");
 
         if(move_group_.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS) {
-            printPlanDebugInfo(move_group_, plan);
             ROS_WARN_NAMED("vader_planner", "Gripper plan computed.");
             return plan;
         }
-        printPlanDebugInfo(move_group_, plan);
         ROS_ERROR_NAMED("vader_planner", "Gripper planning failed.");
         return std::nullopt;
     }
 
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planToJointPositions(const std::vector<double>& joint_positions) {
-        move_group_.setStartStateToCurrentState();
         move_group_.setJointValueTarget(joint_positions);
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         ROS_WARN_NAMED("vader_planner", "Planning for gripper to joint positions...");
 
         if(move_group_.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS) {
-            printPlanDebugInfo(move_group_, plan);
             ROS_WARN_NAMED("vader_planner", "Gripper joint position plan computed.");
             return plan;
         }
-        printPlanDebugInfo(move_group_, plan);
         ROS_ERROR_NAMED("vader_planner", "Gripper joint position planning failed.");
         return std::nullopt;
     }
 
-    void printPlanDebugInfo(const moveit::planning_interface::MoveGroupInterface& move_group_,
-                            const moveit::planning_interface::MoveGroupInterface::Plan& plan)
-    {
-        // Print Planning Frame and End Effector Link
-        std::cout << "Planning frame: " << move_group_.getPlanningFrame() << std::endl;
-        std::cout << "End effector link: " << move_group_.getEndEffectorLink() << std::endl;
+    // void printPlanDebugInfo(const moveit::planning_interface::MoveGroupInterface& move_group_,
+    //                         const moveit::planning_interface::MoveGroupInterface::Plan& plan)
+    // {
+    //     // Print Planning Frame and End Effector Link
+    //     std::cout << "Planning frame: " << move_group_.getPlanningFrame() << std::endl;
+    //     std::cout << "End effector link: " << move_group_.getEndEffectorLink() << std::endl;
 
-        // Print current robot state joint names and positions
-        auto current_state = move_group_.getCurrentState();
-        const std::vector<std::string>& joint_names = current_state->getJointModelGroup(move_group_.getName())->getVariableNames();
-        std::cout << "Current Robot State Joints:" << std::endl;
-        for (const auto& joint_name : joint_names)
-        {
-            double pos = current_state->getVariablePosition(joint_name);
-            std::cout << "  " << joint_name << ": " << pos << std::endl;
-        }
+    //     // Print current robot state joint names and positions
+    //     auto current_state = move_group_.getCurrentState();
+    //     const std::vector<std::string>& joint_names = current_state->getJointModelGroup(move_group_.getName())->getVariableNames();
+    //     std::cout << "Current Robot State Joints:" << std::endl;
+    //     for (const auto& joint_name : joint_names)
+    //     {
+    //         double pos = current_state->getVariablePosition(joint_name);
+    //         std::cout << "  " << joint_name << ": " << pos << std::endl;
+    //     }
 
-        // auto start_state_ptr = move_group_.getStartState(); // in impl but not interface
-
-
-        // // auto start_state_plan = plan.start_state_;
-        // auto traj_plan = plan.trajectory_;
-
-        // // Print start state from the plan
-        // auto plan_start_state = plan.start_state_;
-        // std::cout << "Plan Start State Joints:" << std::endl;
-        // for (const auto& joint_name : joint_names)
-        // {
-        //     double pos = plan_start_state.getVariablePosition(joint_name);
-        //     std::cout << "  " << joint_name << ": " << pos << std::endl;
-        // }
-
-        // Print trajectory waypoints joint positions
-        // std::cout << "Trajectory joint waypoints:" << std::endl;
-        // const moveit_msgs::RobotTrajectory traj = plan.trajectory_;
-        // const robot_state::RobotState& first_waypt = traj.getFirstWayPoint();
-        // std::cout << "  First waypoint:" << std::endl;
-        // for (const auto& joint_name : joint_names)
-        // {
-        //     double pos = current_state->getVariablePosition(joint_name);
-        //     std::cout << "  " << joint_name << ": " << pos << std::endl;
-        // }
+    //     // auto start_state_ptr = move_group_.getStartState(); // in impl but not interface
 
 
-        // Print planning time and error code
-        std::cout << "Planning time (s): " << plan.planning_time_ << std::endl;
-    }
+    //     // // auto start_state_plan = plan.start_state_;
+    //     // auto traj_plan = plan.trajectory_;
+
+    //     // // Print start state from the plan
+    //     // auto plan_start_state = plan.start_state_;
+    //     // std::cout << "Plan Start State Joints:" << std::endl;
+    //     // for (const auto& joint_name : joint_names)
+    //     // {
+    //     //     double pos = plan_start_state.getVariablePosition(joint_name);
+    //     //     std::cout << "  " << joint_name << ": " << pos << std::endl;
+    //     // }
+
+    //     // Print trajectory waypoints joint positions
+    //     // std::cout << "Trajectory joint waypoints:" << std::endl;
+    //     // const moveit_msgs::RobotTrajectory traj = plan.trajectory_;
+    //     // const robot_state::RobotState& first_waypt = traj.getFirstWayPoint();
+    //     // std::cout << "  First waypoint:" << std::endl;
+    //     // for (const auto& joint_name : joint_names)
+    //     // {
+    //     //     double pos = current_state->getVariablePosition(joint_name);
+    //     //     std::cout << "  " << joint_name << ": " << pos << std::endl;
+    //     // }
+
+
+    //     // Print planning time and error code
+    //     std::cout << "Planning time (s): " << plan.planning_time_ << std::endl;
+    // }
 
     // Execute synchronously
     bool execSync(const moveit::planning_interface::MoveGroupInterface::Plan& plan) {
@@ -312,6 +295,10 @@ public:
         // Check if the pose is reachable
         bool found_ik = state_copy.setFromIK(joint_model_group, target_pose, 0.1);
         return found_ik;
+    }
+
+    geometry_msgs::Pose getCurrentPose() {
+        return move_group_.getCurrentPose().pose;
     }
 
     std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator)
@@ -440,6 +427,7 @@ public:
 
 
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planGuidedCartesian(const geometry_msgs::Pose& target_pose) {
+        move_group_.setStartStateToCurrentState();
         auto current_pose = move_group_.getCurrentPose().pose;
 
         double dist = std::sqrt(
@@ -523,17 +511,14 @@ public:
     }
 
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planToJointPositions(const std::vector<double>& joint_positions) {
-        move_group_.setStartStateToCurrentState();
         move_group_.setJointValueTarget(joint_positions);
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         ROS_WARN_NAMED("vader_planner", "Planning for gripper to joint positions...");
 
         if(move_group_.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS) {
-            // printPlanDebugInfo(move_group_, plan);
             ROS_WARN_NAMED("vader_planner", "Gripper joint position plan computed.");
             return plan;
         }
-        // printPlanDebugInfo(move_group_, plan);
         ROS_ERROR_NAMED("vader_planner", "Gripper joint position planning failed.");
         return std::nullopt;
     }
@@ -541,7 +526,6 @@ public:
 
     // Plan using RRT (default MoveIt planner)
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planRRT(const geometry_msgs::Pose& target_pose) {
-        move_group_.setStartStateToCurrentState();
         auto curr_pose = move_group_.getCurrentPose().pose;
 
         ROS_WARN_NAMED("vader_planner", "current pose: position=(%f, %f, %f) quat=(%f, %f, %f, %f)",
@@ -577,6 +561,9 @@ public:
         return found_ik;
     }
 
+    geometry_msgs::Pose getCurrentPose() {
+        return move_group_.getCurrentPose().pose;
+    }
 
     std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator)
     {
@@ -881,9 +868,21 @@ public:
     }
 
     int homeGripper(){
-        // auto plan = gripper_planner_.planRRT(gripperHomePose);
         auto plan = gripper_planner_.planToJointPositions(gripper_arm_home_joint_positions);
-        plan = gripper_planner_.planToJointPositions(gripper_arm_home_joint_positions);
+        if(plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper home movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_RRT_TIMEOUT;
+        }
+        show_trails(plan, std::nullopt);
+        bool success = gripper_planner_.execSync(plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
+        return vader_msgs::PlanningRequest::Response::SUCCESS;
+    }
+
+    int moveGripperToStorage(){
+        auto plan = gripper_planner_.planToJointPositions(gripper_arm_storage_joint_positions);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper home movement.");
             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_RRT_TIMEOUT;
@@ -899,7 +898,6 @@ public:
     int homeCutter(){
         // auto plan = cutter_planner_.planRRT(cutterHomePose);
         auto plan = cutter_planner_.planToJointPositions(cutter_arm_home_joint_positions);
-        plan = cutter_planner_.planToJointPositions(cutter_arm_home_joint_positions);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_RRT_TIMEOUT;
@@ -914,13 +912,7 @@ public:
 
     int gripperGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
         // Translate the target pose along its local -Z axis by final_approach_dist
-        tf::Quaternion tq;
-        tf::quaternionMsgToTF(target_pose.orientation, tq);
-        tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, -final_approach_dist));
-        geometry_msgs::Pose approach_pose = target_pose; //copy for later use
-        approach_pose.position.x += world_offset.x();
-        approach_pose.position.y += world_offset.y();
-        approach_pose.position.z += world_offset.z();
+        geometry_msgs::Pose approach_pose = translateByLocalZ(target_pose, -final_approach_dist);
 
         auto plan = gripper_planner_.planGuidedCartesian(approach_pose);
         // plan = gripper_planner_.planRRT(approach_pose);
@@ -935,50 +927,15 @@ public:
         }
         return vader_msgs::PlanningRequest::Response::SUCCESS;
 
-        // // Move cartesian to actual target pose
-        // if(success) {
-        //     auto cartesian_plan = gripper_planner_.planCartesian(target_pose);
-        //     if(cartesian_plan == std::nullopt) {
-        //         ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper final approach movement.");
-        //         return false;
-        //     }
-        //     show_trails(cartesian_plan, std::nullopt);
-        //     success &= gripper_planner_.execSync(cartesian_plan.value());
-        // }
+        // Move cartesian to actual target pose...
     }
 
     int cutterGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
-        //Rotate target
 
-        // Create a rotation matrix for a 90-degree clockwise rotation around the z-axis
-        // tf::Matrix3x3 rotation_matrix(
-        //     0, 1, 0,  // First column
-        //     -1, 0, 0, // Second column
-        //     0, 0, 1   // Third column
-        // );
-        // tf::Quaternion tq_;
-        // tf::quaternionMsgToTF(target_pose.orientation, tq_);
-
-        // tf::Quaternion rotation_quat;
-        // rotation_matrix.getRotation(rotation_quat);
-
-        // // Apply rotation and normalize
-        // tf::Quaternion rotated = tq_ * rotation_quat;
-        // rotated.normalize();
-
-        // // Write back to pose
-        // tf::quaternionTFToMsg(rotated, target_pose.orientation);
-        // Translate the target pose along its local -Z axis by final_approach_dist
-        tf::Quaternion tq;
-        tf::quaternionMsgToTF(target_pose.orientation, tq);
-        tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, -final_approach_dist));
-        geometry_msgs::Pose approach_pose = target_pose; //copy for later use
-        approach_pose.position.x += world_offset.x();
-        approach_pose.position.y += world_offset.y();
-        approach_pose.position.z += world_offset.z();
+        geometry_msgs::Pose approach_pose = translateByLocalZ(target_pose, -final_approach_dist);
         visual_tools->publishAxisLabeled(approach_pose, "Cutter Approach Pose", rvt::SMALL);
         visual_tools->trigger();
-        // auto plan = cutter_planner_.planRRT(approach_pose);
+
         auto plan = cutter_planner_.planGuidedCartesian(approach_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter grasp movement.");
@@ -1048,10 +1005,8 @@ public:
         // show_trails(std::nullopt, cutter_plan);
         // success &= cutter_planner_.execSync(cutter_plan.value());
 
-        auto gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);// planRRT(gripper_target_pose);
-        gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);// planRRT(gripper_target_pose);
+        auto gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);
 
-        // gripper_plan = gripper_planner_.planRRT(gripper_target_pose);
         if(gripper_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to pregrasp.");
             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
@@ -1063,9 +1018,7 @@ public:
         }
 
         auto cutter_plan = cutter_planner_.planGuidedCartesian(cutter_target_pose);
-        cutter_plan = cutter_planner_.planGuidedCartesian(cutter_target_pose);
 
-        // // cutter_plan = cutter_planner_.planRRT(cutter_target_pose);
         if(cutter_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter movement to pregrasp.");
             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
@@ -1114,11 +1067,59 @@ public:
         // }
         // show_trails(gripper_plan, std::nullopt);
         // success &= gripper_planner_.execSync(gripper_plan.value());
-        returnCode = homeGripper();
+
+        // auto gripper_plan = gripper_planner_.planGuidedCartesian(...); //TODO make it retract by same amount
+        
+        geometry_msgs::Pose cutter_retract_pose = translateByLocalZ(cutter_planner_.getCurrentPose(), -0.15);
+        geometry_msgs::Pose gripper_retract_pose = translateByLocalZ(gripper_planner_.getCurrentPose(), -0.15);
+
+        auto cutter_retract_plan = cutter_planner_.planGuidedCartesian(cutter_retract_pose);
+        if(cutter_retract_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter retract movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
+        }
+        show_trails(std::nullopt, cutter_retract_plan);
+        bool success = cutter_planner_.execSync(cutter_retract_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+        }
+
+        auto gripper_retract_plan = gripper_planner_.planGuidedCartesian(gripper_retract_pose);
+        if(gripper_retract_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper retract movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+        }
+        show_trails(gripper_retract_plan, std::nullopt);
+        success = gripper_planner_.execSync(gripper_retract_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
+
+        removeSharedWorkspaceCollision();
+        returnCode = homeCutter();
         if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
             return returnCode;
         }
-        returnCode = homeCutter();
+        
+        returnCode = moveGripperToStorage();
+        if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
+            return returnCode;
+        }
+
+        // lower gripper to storage position
+        geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
+        gripper_lowered_pose.position.z -= 0.1; // lower by 10 cm
+        auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
+        if(gripper_lower_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+        }
+        show_trails(gripper_lower_plan, std::nullopt);
+        success = gripper_planner_.execSync(gripper_lower_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
+
         return returnCode;
     }
 
@@ -1127,15 +1128,14 @@ public:
         // Implement planning service logic here
         switch(req.mode) {
             case vader_msgs::PlanningRequest::Request::HOME_CUTTER:{
-                setUpSharedWorkspaceCollision(0.15, 0.6);
 
                 res.result = homeCutter();
                 break;
             }
             case vader_msgs::PlanningRequest::Request::HOME_GRIPPER:{
-                setUpSharedWorkspaceCollision(0.15, 0.6);
 
                 res.result = homeGripper();
+                setUpSharedWorkspaceCollision(0.25, 0.6);
                 break;
             }
             case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_PREGRASP:
@@ -1217,7 +1217,6 @@ public:
                 }
                 visual_tools->trigger();
                 res.result = parallelMovePregrasp(gripper_pregrasp_pose, cutter_pregrasp_pose);
-                // setUpSharedWorkspaceCollision(0.25, 0.4);
                 break;
             }
             case vader_msgs::PlanningRequest::Request::GRIPPER_GRASP:{
@@ -1280,10 +1279,6 @@ public:
                 visual_tools->publishAxisLabeled(gripper_pregrasp_pose, "Gripper Grasp Pose", rvt::MEDIUM);
 
                 res.result = gripperGrasp(gripper_pregrasp_pose, final_approach_dist);
-
-
-                // res.success = gripperGrasp(req., req.final_approach_dist);
-                // res.success = false; // Not implemented
                 break;
             }
             case vader_msgs::PlanningRequest::Request::CUTTER_GRASP:{
@@ -1318,7 +1313,6 @@ public:
                     {
                         ROS_INFO("Found valid IK pose for cutter pregrasp.");
                         cutter_pregrasp_pose = cutter_test_pose;
-                        // visual_tools->deleteAllMarkers();
                         found_valid_poses = true;
                         break;
                     }
@@ -1339,7 +1333,7 @@ public:
                 tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, 0.1));
                 cutter_pregrasp_pose.position.x += world_offset.x();
                 cutter_pregrasp_pose.position.y += world_offset.y();
-                cutter_pregrasp_pose.position.z += world_offset.z() + 0.1;
+                cutter_pregrasp_pose.position.z += world_offset.z() + 0.05;
                 visual_tools->publishAxisLabeled(cutter_pregrasp_pose, "Cutter Grasp Pose", rvt::MEDIUM);
 
                 // Plan a Cartesian approach to the target pose
@@ -1377,7 +1371,12 @@ public:
         // Add the single thin wall to the planning scene (no ACM / allowed entries changes)
         planning_scene_interface.applyCollisionObject(workspace_divide_wall, COLOR_BLUE_TRANSLUCENT());
 
-        ROS_WARN_NAMED("vader_planner", "Shared workspace demo collision objs setup complete.");
+        ROS_WARN_NAMED("vader_planner", "Shared workspace collision set up.");
+    }
+
+    void removeSharedWorkspaceCollision(){
+        planning_scene_interface.removeCollisionObjects({"workspace_divide_wall"});
+        ROS_WARN_NAMED("vader_planner", "Shared workspace collision removed.");
     }
 
 private:
@@ -1399,12 +1398,6 @@ private:
     VADERGripperPlanner gripper_planner_;
     VADERCutterPlanner cutter_planner_;
     ros::AsyncSpinner spinner;
-
-    std::string GRIPPER_PLANNING_FRAME;
-    std::string CUTTER_PLANNING_FRAME;
-
-    const std::vector<std::string> LINK_SUFFIXES = {"link1", "link2", "link3", "link4", "link5", "link6", "link7", "link_base", "link_eef"};
-
 };
 
 
@@ -1416,31 +1409,6 @@ int main(int argc, char **argv)
 
     plannerServer.start();
 
-    // plannerServer.homeGripper();
-    // plannerServer.homeCutter();
-
-    // plannerServer.setUpSharedWorkspaceCollision(0.25);
-    // ros::Duration(0.5).sleep();
-    // plannerServer.homeGripper();
-    // plannerServer.parallelMoveStorage();
-
-    // tf2::Quaternion q;
-    // double angle_rad = 20.0 * M_PI / 180.0;
-    // q.setRPY(0.0, angle_rad, 0.0); // roll, pitch, yaw -> rotate 20 deg about Y (pitch)
-    // q.normalize();
-    // geometry_msgs::Quaternion quat_msg = tf2::toMsg(q);
-    // geometry_msgs::Pose fruit_pose = makePose(0.7, 0.0, 0.5, quat_msg);
-    
-    // plannerServer.generate_parametric_circle_poses(
-    //     fruit_pose, 0.2);
-    // geometry_msgs::Pose target_pose = makePose(0.7, 0.0, 0.5, QUAT_TOWARD_PLANT());
-    // plannerServer.gripperGrasp(target_pose, 0.0);
-
-    // ros::Duration(5).sleep();
-
-    // double divide_workspace_y = 0.375;
-
-    // plannerServer.parallelPlanExecuteDemo();
     ros::waitForShutdown();
     return 0;
 }
