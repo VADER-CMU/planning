@@ -217,6 +217,36 @@ public:
         return std::nullopt;
     }
 
+    bool alreadyAtJointPositions(const std::vector<double>& joint_positions) {
+        std::vector<double> current_joints = move_group_.getCurrentJointValues();
+
+        std::cout << "curr: ";
+        for(auto joint_val : current_joints) {
+            std::cout << joint_val << ", ";
+        }
+        std::cout << "\ntgt: ";
+        for (auto joint_val : joint_positions) {
+            std::cout << joint_val << ", ";
+        }
+        std::cout << "\n";  
+
+        // Calculate norm between current and target joint positions
+        double norm = 0.0;
+        for (size_t i = 0; i < current_joints.size(); i++) {
+            norm += std::pow(current_joints[i] - joint_positions[i], 2);
+        }
+        norm = std::sqrt(norm);
+
+        // If norm is small, robot is already at target
+        const double epsilon = 0.01; // radians
+        if (norm < epsilon) {
+            ROS_WARN_NAMED("vader_planner", "Robot already at target joint positions (norm: %f)", norm);
+            return true;
+        }
+        ROS_INFO_NAMED("vader_planner", "Robot not at target joint positions (norm: %f)", norm);
+        return false;
+    }
+
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planToJointPositions(const std::vector<double>& joint_positions) {
         move_group_.setJointValueTarget(joint_positions);
         moveit::planning_interface::MoveGroupInterface::Plan plan;
@@ -300,6 +330,8 @@ public:
     geometry_msgs::Pose getCurrentPose() {
         return move_group_.getCurrentPose().pose;
     }
+
+
 
     std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator)
     {
@@ -402,6 +434,26 @@ public:
         : move_group_(CUTTER_MOVE_GROUP), visual_tools(visual_tools_in) {
             ROS_INFO_NAMED("vader_planner", "Initialized VADER Cutter Planner");
         }
+
+    bool alreadyAtJointPositions(const std::vector<double>& joint_positions) {
+        std::vector<double> current_joints = move_group_.getCurrentJointValues();
+
+        // Calculate norm between current and target joint positions
+        double norm = 0.0;
+        for (size_t i = 0; i < current_joints.size(); i++) {
+            norm += std::pow(current_joints[i] - joint_positions[i], 2);
+        }
+        norm = std::sqrt(norm);
+
+        // If norm is small, robot is already at target
+        const double epsilon = 0.01; // radians
+        if (norm < epsilon) {
+            ROS_WARN_NAMED("vader_planner", "Robot already at target joint positions (norm: %f)", norm);
+            return true;
+        }
+        ROS_INFO_NAMED("vader_planner", "Robot not at target joint positions (norm: %f)", norm);
+        return false;
+    }
 
     // Plan a Cartesian path
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const geometry_msgs::Pose& target_pose) {
@@ -868,6 +920,12 @@ public:
     }
 
     int homeGripper(){
+        bool alreadyThere = gripper_planner_.alreadyAtJointPositions(gripper_arm_home_joint_positions);
+        if(alreadyThere) {
+            ROS_WARN_NAMED("vader_planner", "Gripper already at home joint positions.");
+            return vader_msgs::PlanningRequest::Response::SUCCESS;
+        }
+
         auto plan = gripper_planner_.planToJointPositions(gripper_arm_home_joint_positions);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper home movement.");
@@ -896,7 +954,12 @@ public:
     }
 
     int homeCutter(){
-        // auto plan = cutter_planner_.planRRT(cutterHomePose);
+        bool alreadyThere = cutter_planner_.alreadyAtJointPositions(cutter_arm_home_joint_positions);
+        if(alreadyThere) {
+            ROS_WARN_NAMED("vader_planner", "Cutter already at home joint positions.");
+            return vader_msgs::PlanningRequest::Response::SUCCESS;
+        }
+
         auto plan = cutter_planner_.planToJointPositions(cutter_arm_home_joint_positions);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
