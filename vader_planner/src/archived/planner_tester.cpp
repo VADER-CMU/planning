@@ -754,7 +754,7 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
   std::string robot_name = "";
   nh.getParam("robot_name", robot_name);
-  PlannerTester::PLANNING_GROUP = robot_name;
+  PlannerTester::PLANNING_GROUP = "L_xarm7";
 
   PlannerTester planner;
 

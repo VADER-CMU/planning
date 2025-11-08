@@ -333,7 +333,7 @@ public:
 
 
 
-    std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator)
+    std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator, bool debug)
     {
         std::queue<geometry_msgs::Pose> pose_queue;
 
@@ -362,8 +362,9 @@ public:
         double B = -fruit_centroid.dot(v);
 
         double theta_min = atan2(B, A);
-
-        ROS_INFO("=== Parametric Circle Pose Queue ===");
+        if(debug){
+            ROS_INFO("=== Parametric Circle Pose Queue ===");
+        }
 
         std::vector<double> test_radii = {approach_dist, 0.3, 0.2, 0.35, 0.15, 0.4};
         
@@ -402,24 +403,24 @@ public:
                 geometry_msgs::Pose test_pose = _get_pose_from_pos_and_quat(test_point, test_quat);
 
                 pose_queue.push(test_pose);
+                if(debug){
+                    ROS_INFO("Pose %zu: radius=%.3f, angle_offset=%.3f rad (%.1f deg)", 
+                            pose_queue.size(), radius, offset, offset * 180.0 / M_PI);
+                    ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
+                            test_pose.position.x, test_pose.position.y, test_pose.position.z);
+                    ROS_INFO("  Orientation: x=%.3f,y=%.3f, z=%.3f, w=%.3f", 
+                            test_pose.orientation.x, test_pose.orientation.y, test_pose.orientation.z, test_pose.orientation.w);
+                    
+                    // Publish labeled coordinate axes
+                    visual_tools->publishAxisLabeled(test_pose, std::to_string(pose_queue.size()), rvt::SMALL);
 
-                ROS_INFO("Pose %zu: radius=%.3f, angle_offset=%.3f rad (%.1f deg)", 
-                        pose_queue.size(), radius, offset, offset * 180.0 / M_PI);
-                ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
-                        test_pose.position.x, test_pose.position.y, test_pose.position.z);
-                ROS_INFO("  Orientation: x=%.3f,y=%.3f, z=%.3f, w=%.3f", 
-                        test_pose.orientation.x, test_pose.orientation.y, test_pose.orientation.z, test_pose.orientation.w);
-                
-                // Publish labeled coordinate axes
-                visual_tools->publishAxisLabeled(test_pose, std::to_string(pose_queue.size()), rvt::SMALL);
-
-
+                }
             }
         }
         visual_tools->trigger();
-
-        ROS_INFO("=== Total poses in queue: %zu ===", pose_queue.size());
-
+        if(debug){
+            ROS_INFO("=== Total poses in queue: %zu ===", pose_queue.size());
+        }
         return pose_queue;
     }
 
@@ -617,7 +618,7 @@ public:
         return move_group_.getCurrentPose().pose;
     }
 
-    std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator)
+    std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator, bool debug)
     {
         std::queue<geometry_msgs::Pose> pose_queue;
 
@@ -646,8 +647,9 @@ public:
         double B = -fruit_centroid.dot(v);
 
         double theta_min = atan2(B, A);
-
-        ROS_INFO("=== Parametric Circle Pose Queue ===");
+        if(debug){
+            ROS_INFO("=== Parametric Circle Pose Queue ===");
+        }
 
         std::vector<double> test_radii = {approach_dist, 0.3, 0.2, 0.35, 0.15, 0.4};
         
@@ -700,21 +702,23 @@ public:
                 geometry_msgs::Pose test_pose = _get_pose_from_pos_and_quat(test_point, test_quat);
 
                 pose_queue.push(test_pose);
-
-                ROS_INFO("Pose %zu: radius=%.3f, angle_offset=%.3f rad (%.1f deg)", 
-                        pose_queue.size(), radius, offset, offset * 180.0 / M_PI);
-                ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
-                        test_pose.position.x, test_pose.position.y, test_pose.position.z);
-                ROS_INFO("  Orientation: x=%.3f,y=%.3f, z=%.3f, w=%.3f", 
-                        test_pose.orientation.x, test_pose.orientation.y, test_pose.orientation.z, test_pose.orientation.w);
-                
+                if(debug){
+                    ROS_INFO("Pose %zu: radius=%.3f, angle_offset=%.3f rad (%.1f deg)", 
+                            pose_queue.size(), radius, offset, offset * 180.0 / M_PI);
+                    ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
+                            test_pose.position.x, test_pose.position.y, test_pose.position.z);
+                    ROS_INFO("  Orientation: x=%.3f,y=%.3f, z=%.3f, w=%.3f", 
+                            test_pose.orientation.x, test_pose.orientation.y, test_pose.orientation.z, test_pose.orientation.w);
+                    
                 // Publish labeled coordinate axes
                 visual_tools->publishAxisLabeled(test_pose, std::to_string(pose_queue.size()), rvt::SMALL);
+                }
             }
         }
         visual_tools->trigger();
-
-        ROS_INFO("=== Total poses in queue: %zu ===", pose_queue.size());
+        if(debug){
+            ROS_INFO("=== Total poses in queue: %zu ===", pose_queue.size());
+        }
 
         return pose_queue;
     }
@@ -1192,11 +1196,13 @@ public:
         switch(req.mode) {
             case vader_msgs::PlanningRequest::Request::HOME_CUTTER:{
 
+                visual_tools->deleteAllMarkers();
                 res.result = homeCutter();
                 break;
             }
             case vader_msgs::PlanningRequest::Request::HOME_GRIPPER:{
 
+                visual_tools->deleteAllMarkers();
                 res.result = homeGripper();
                 setUpSharedWorkspaceCollision(0.25, 0.6);
                 break;
@@ -1205,22 +1211,23 @@ public:
             {
                 vader_msgs::Pepper pepper_estimate = req.pepper;
 
-                ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
+                visual_tools->deleteAllMarkers();
+                ROS_INFO("Pepper estimate Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
 
-                pepper_estimate.fruit_data.pose.orientation.x = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.y = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.z = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.w = 1.0;
+                // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.w = 1.0;
 
-                pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
-                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, 3*M_PI/12);
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -3* M_PI/12);
+                // pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
+                bool debug_PC_output = false;
+                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, 3*M_PI/12, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -3* M_PI/12, debug_PC_output);
                 visual_tools->trigger();
-                // setUpSharedWorkspaceCollision(math.min(0.4, math.max(0.1, pepper_estimate.fruit_data.pose.position.y)), 0.6);
 
                 setUpSharedWorkspaceCollision(0.15, 0.6);
 
@@ -1286,20 +1293,21 @@ public:
                 // TODO here, calculate desired pose based off of pepper estimate
                 vader_msgs::Pepper pepper_estimate = req.pepper;
 
-                pepper_estimate.fruit_data.pose.orientation.x = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.y = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.z = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.w = 1.0;
+                // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.w = 1.0;
 
-                pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
+                // pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 double final_approach_dist = 0.10;
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
-                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, final_approach_dist, 2*M_PI/12);
+                bool debug_PC_output = false;
+                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, final_approach_dist, 2*M_PI/12, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
                 geometry_msgs::Pose gripper_pregrasp_pose;
@@ -1340,6 +1348,7 @@ public:
                 gripper_pregrasp_pose.position.y += world_offset.y();
                 gripper_pregrasp_pose.position.z += world_offset.z();
                 visual_tools->publishAxisLabeled(gripper_pregrasp_pose, "Gripper Grasp Pose", rvt::MEDIUM);
+                visual_tools->trigger();
 
                 res.result = gripperGrasp(gripper_pregrasp_pose, final_approach_dist);
                 break;
@@ -1348,20 +1357,21 @@ public:
                 // TODO here, calculate desired pose based off of pepper estimate
                 vader_msgs::Pepper pepper_estimate = req.pepper;
 
-                pepper_estimate.fruit_data.pose.orientation.x = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.y = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.z = 0.0;
-                pepper_estimate.fruit_data.pose.orientation.w = 1.0;
+                // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
+                // pepper_estimate.fruit_data.pose.orientation.w = 1.0;
 
-                pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
-                pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
+                // pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
+                // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 double final_approach_dist = 0.1;
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f",
                         pepper_estimate.peduncle_data.pose.position.x, pepper_estimate.peduncle_data.pose.position.y, pepper_estimate.peduncle_data.pose.position.z);
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, -3*M_PI/12);
+                bool debug_PC_output = false;
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, -3*M_PI/12, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
                 geometry_msgs::Pose cutter_pregrasp_pose;
@@ -1391,20 +1401,16 @@ public:
                 visual_tools->trigger();
 
                 // Translate the target pose along its local -Z axis by final_approach_dist
-                tf::Quaternion tq;
-                tf::quaternionMsgToTF(cutter_pregrasp_pose.orientation, tq);
-                tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, 0.1));
-                cutter_pregrasp_pose.position.x += world_offset.x();
-                cutter_pregrasp_pose.position.y += world_offset.y();
-                cutter_pregrasp_pose.position.z += world_offset.z() + 0.05;
+                cutter_pregrasp_pose = translateByLocalZ(cutter_pregrasp_pose, 0.1);
+                cutter_pregrasp_pose.position.z += 0.05; // extra offset to account for cutter length
                 visual_tools->publishAxisLabeled(cutter_pregrasp_pose, "Cutter Grasp Pose", rvt::MEDIUM);
 
                 // Plan a Cartesian approach to the target pose
                 res.result = cutterGrasp(cutter_pregrasp_pose, final_approach_dist);
-
                 break;
             }
             case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_STORAGE:{
+                visual_tools->deleteAllMarkers();
                 res.result = parallelMoveStorage();
                 break;
             }
