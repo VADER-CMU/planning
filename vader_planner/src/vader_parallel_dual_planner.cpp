@@ -173,18 +173,18 @@ public:
         moveit_msgs::RobotTrajectory trajectory;
         double fraction = 0.0;
         
-        while(fraction < cartesian_threshold) {
-            ROS_INFO_NAMED("vader_planner", "Retry with fraction: %f", fraction);
-            fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
-        }
-        for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
-            trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
-            if(i % 5 == 0){
-                std::cout << point.time_from_start << ", " ;
-            }
-            // point.time_from_start = ros::Duration(i*0.05);
-        }
-        std::cout << "\n";
+        // while(fraction < cartesian_threshold) {
+        // ROS_INFO_NAMED("vader_planner", "Retry with fraction: %f", fraction);
+        fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
+        // }
+        // for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
+        //     trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
+        //     if(i % 5 == 0){
+        //         std::cout << point.time_from_start << ", " ;
+        //     }
+        //     // point.time_from_start = ros::Duration(i*0.05);
+        // }
+        // std::cout << "\n";
 
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         plan.trajectory_ = trajectory;
@@ -515,17 +515,17 @@ public:
         moveit_msgs::RobotTrajectory trajectory;
         double fraction = 0.0;
         
-        while(fraction < cartesian_threshold) {
-            ROS_INFO_NAMED("vader_planner", "Retry with fraction: %f", fraction);
-            fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
-        }
-        for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
-            trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
-            if(i % 5 == 0){
-                std::cout << point.time_from_start << ", " ;
-            }
-            // point.time_from_start = ros::Duration(i*0.05);
-        }
+        // while(fraction < cartesian_threshold) {
+            // ROS_INFO_NAMED("vader_planner", "Retry with fraction: %f", fraction);
+        fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
+        // }
+        // for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
+        //     trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
+        //     if(i % 5 == 0){
+        //         std::cout << point.time_from_start << ", " ;
+        //     }
+        //     // point.time_from_start = ros::Duration(i*0.05);
+        // }
 
         // robot_trajectory::RobotTrajectory rt(move_group_.getCurrentState()->getRobotModel(), GRIPPER_MOVE_GROUP);
         // rt.setRobotTrajectoryMsg(*move_group_.getCurrentState(), trajectory); // computed_trajectory from computeCartesianPath()
@@ -861,6 +861,25 @@ public:
         planning_scene_interface.applyCollisionObject(ground_plane);
     }
 
+    void visualizePepper(const vader_msgs::Pepper pepper_estimate) {
+        //Visualize as a visual tools marker
+        std_msgs::ColorRGBA pepper_color;
+        // green
+        pepper_color.r = 0.0f;
+        pepper_color.g = 1.0f;
+        pepper_color.b = 0.0f;
+        pepper_color.a = 0.8f; // semi-transparent
+        visual_tools->publishCylinder(pepper_estimate.fruit_data.pose, pepper_color, pepper_estimate.fruit_data.shape.dimensions[0], pepper_estimate.fruit_data.shape.dimensions[1]*2);
+        
+        std_msgs::ColorRGBA peduncle_color;
+        // brown
+        peduncle_color.r = 0.6f;
+        peduncle_color.g = 0.3f;
+        peduncle_color.b = 0.0f;
+        peduncle_color.a = 0.8f; // semi-transparent
+        visual_tools->publishCylinder(pepper_estimate.peduncle_data.pose, peduncle_color, pepper_estimate.peduncle_data.shape.dimensions[0], pepper_estimate.peduncle_data.shape.dimensions[1]*2);
+        visual_tools->trigger();
+    }
 
     void setupWorkspaceCollision(){
         //Warthog body
@@ -1210,8 +1229,9 @@ public:
             case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_PREGRASP:
             {
                 vader_msgs::Pepper pepper_estimate = req.pepper;
-
                 visual_tools->deleteAllMarkers();
+                visualizePepper(pepper_estimate);
+
                 ROS_INFO("Pepper estimate Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
 
@@ -1292,7 +1312,8 @@ public:
             case vader_msgs::PlanningRequest::Request::GRIPPER_GRASP:{
                 // TODO here, calculate desired pose based off of pepper estimate
                 vader_msgs::Pepper pepper_estimate = req.pepper;
-
+                visual_tools->deleteAllMarkers();
+                visualizePepper(pepper_estimate);
                 // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
@@ -1322,7 +1343,6 @@ public:
                     {
                         ROS_INFO("Found valid IK pose for gripper pregrasp.");
                         gripper_pregrasp_pose = gripper_test_pose;
-                        visual_tools->deleteAllMarkers();
                         visual_tools->publishAxisLabeled(gripper_test_pose, "Gripper Grasp Pose", rvt::MEDIUM);
                         found_valid_poses = true;
                         break;
@@ -1356,7 +1376,7 @@ public:
             case vader_msgs::PlanningRequest::Request::CUTTER_GRASP:{
                 // TODO here, calculate desired pose based off of pepper estimate
                 vader_msgs::Pepper pepper_estimate = req.pepper;
-
+                visualizePepper(pepper_estimate);
                 // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
