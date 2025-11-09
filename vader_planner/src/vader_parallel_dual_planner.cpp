@@ -65,7 +65,7 @@ const double cartesian_threshold = 0.9;
 const std::string GRIPPER_MOVE_GROUP = "L_xarm7";
 const std::string CUTTER_MOVE_GROUP = "R_xarm7";
 
-const std::vector<double> gripper_arm_home_joint_positions = {84.6 * (M_PI / 180.0), -85.2 * (M_PI / 180.0), -13.2 * (M_PI / 180.0), 63.6 * (M_PI / 180.0), 22.5 * (M_PI / 180.0), 21.1 * (M_PI / 180.0), 64.0 * (M_PI / 180.0)};
+const std::vector<double> gripper_arm_home_joint_positions = {75.2 * (M_PI / 180.0), -89.8 * (M_PI / 180.0), -2.4 * (M_PI / 180.0), 58.8 * (M_PI / 180.0), 26.7 * (M_PI / 180.0), 20.9 * (M_PI / 180.0), 75.1 * (M_PI / 180.0)};
 const std::vector<double> cutter_arm_home_joint_positions = {-84.6 * (M_PI / 180.0), -85.2 * (M_PI / 180.0), 13.2 * (M_PI / 180.0), 63.6 * (M_PI / 180.0), -22.5 * (M_PI / 180.0), 21.1 * (M_PI / 180.0), 210.5 * (M_PI / 180.0)};
 
 const std::vector<double> gripper_arm_storage_joint_positions = {80 * (M_PI / 180.0), -39.9 * (M_PI / 180.0), 11.2 * (M_PI / 180.0), 31.4 * (M_PI / 180.0), 0 * (M_PI / 180.0), 68.3 * (M_PI / 180.0), 84.7 * (M_PI / 180.0)};
@@ -1011,6 +1011,17 @@ public:
         if(!success) {
             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
         }
+
+        plan = gripper_planner_.planGuidedCartesian(target_pose);// planCartesian(target_pose);
+        if(plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper final approach movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+        }
+        show_trails(plan, std::nullopt);
+        success = gripper_planner_.execSync(plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
         return vader_msgs::PlanningRequest::Response::SUCCESS;
 
         // Move cartesian to actual target pose...
@@ -1090,6 +1101,8 @@ public:
         // gripper_exec_thread.join();
         // show_trails(std::nullopt, cutter_plan);
         // success &= cutter_planner_.execSync(cutter_plan.value());
+
+        gripper_target_pose.position.z += 0.10; //lift pregrasp to help camera see peduncle
 
         auto gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);
 
@@ -1364,7 +1377,7 @@ public:
                 // Translate the target pose along its local -Z axis by final_approach_dist
                 tf::Quaternion tq;
                 tf::quaternionMsgToTF(gripper_pregrasp_pose.orientation, tq);
-                tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, 0.25));
+                tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, 0.2));
                 gripper_pregrasp_pose.position.x += world_offset.x();
                 gripper_pregrasp_pose.position.y += world_offset.y();
                 gripper_pregrasp_pose.position.z += world_offset.z();
