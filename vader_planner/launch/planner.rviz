@@ -8,8 +8,9 @@ Panels:
         - /MotionPlanning1/Scene Robot1
         - /MotionPlanning1/Planning Request1
         - /MotionPlanning1/Planned Path1
+        - /PoseArray1
       Splitter Ratio: 0.7425600290298462
-    Tree Height: 249
+    Tree Height: 700
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -17,6 +18,13 @@ Panels:
       - /Current View1
     Name: Views
     Splitter Ratio: 0.5
+  - Class: rviz/Displays
+    Help Height: 70
+    Name: Displays
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+    Tree Height: 197
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -177,6 +185,10 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          L_link_tcp:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
           Link Tree Style: Links in Alphabetic Order
           R_link1:
             Alpha: 1
@@ -222,7 +234,46 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          R_link_tcp:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+          blade_moving:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          blade_stationary:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fing_1:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fing_2:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          thumb_1:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           vader_bin_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          vader_cutter_base_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          vader_gripper_base_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -254,7 +305,7 @@ Visualization Manager:
         Goal State Color: 250; 128; 0
         Interactive Marker Size: 0
         Joint Violation Color: 255; 0; 255
-        Planning Group: L_tool_end
+        Planning Group: L_vader_gripper
         Query Goal State: false
         Query Start State: false
         Show Workspace: false
@@ -320,6 +371,10 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          L_link_tcp:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
           Link Tree Style: Links in Alphabetic Order
           R_link1:
             Alpha: 1
@@ -365,7 +420,46 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
+          R_link_tcp:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+          blade_moving:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          blade_stationary:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fing_1:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          fing_2:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          thumb_1:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
           vader_bin_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          vader_cutter_base_link:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          vader_gripper_base_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -432,6 +526,10 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+        L_link_tcp:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         Link Tree Style: Links in Alphabetic Order
         R_link1:
           Alpha: 1
@@ -477,7 +575,46 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+        R_link_tcp:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        blade_moving:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        blade_stationary:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fing_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fing_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        thumb_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         vader_bin_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        vader_cutter_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        vader_gripper_base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -501,7 +638,7 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/Camera
-      Enabled: false
+      Enabled: true
       Image Rendering: background and overlay
       Image Topic: /camera/color/image_raw
       Name: Camera
@@ -509,16 +646,34 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: false
+      Value: true
       Visibility:
         Grid: true
         MarkerArray: true
         MotionPlanning: true
         PointCloud2: true
         Pose: true
+        PoseArray: true
         RobotModel: true
         Value: true
       Zoom Factor: 1
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.10000000149011612
+      Axes Radius: 0.009999999776482582
+      Class: rviz/PoseArray
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: PoseArray
+      Queue Size: 10
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Axes
+      Topic: /debug_pose_array
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -535,7 +690,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 2.007181167602539
+      Distance: 2.590181827545166
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -543,35 +698,35 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.11356700211763382
-        Y: 0.10592000186443329
-        Z: 2.2351800055275817e-07
-      Focal Shape Fixed Size: true
+        X: 0.6638628244400024
+        Y: 0.19562748074531555
+        Z: -4.824234167699615e-08
+      Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3397981524467468
+      Pitch: 0.5053983926773071
       Target Frame: world
-      Yaw: 0.5017712116241455
+      Yaw: 0.5453984141349792
     Saved: ~
 Window Geometry:
   Camera:
-    collapsed: true
+    collapsed: false
   Displays:
-    collapsed: true
-  Height: 1016
+    collapsed: false
+  Height: 1376
   Help:
     collapsed: false
-  Hide Left Dock: true
+  Hide Left Dock: false
   Hide Right Dock: false
   MotionPlanning:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd000000010000000000000639000003a2fc0200000007fc0000003b000003a20000000000fffffffaffffffff0100000002fb0000000c00430061006d0065007200610000000000ffffffff0000007c00fffffffb000000100044006900730070006c0061007900730000000000000007830000015600fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b0000000a000fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000002580000018e0000016900ffffff0000073a000003a200000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000003db0000050afc0200000008fc0000003b000003be000000e20100001afa000000000100000002fb0000000c00430061006d0065007200610100000000ffffffff0000007c00fffffffb000000100044006900730070006c0061007900730100000000000007830000015600fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a0056006900650077007300000003b0000000b0000000a000fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000002580000018e0000016900fffffffb000000100044006900730070006c00610079007301000003ff00000146000000c700ffffff000005d70000050a00000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 1850
-  X: 3510
+  Width: 2488
+  X: 72
   Y: 27
