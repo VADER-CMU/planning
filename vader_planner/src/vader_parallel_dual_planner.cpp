@@ -1314,6 +1314,7 @@ public:
                 vader_msgs::Pepper pepper_estimate = req.pepper;
                 visual_tools->deleteAllMarkers();
                 visualizePepper(pepper_estimate);
+                visual_tools->trigger();
                 // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
@@ -1327,7 +1328,7 @@ public:
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
-                bool debug_PC_output = false;
+                bool debug_PC_output = true;
                 auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, final_approach_dist, 2*M_PI/12, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
@@ -1377,6 +1378,7 @@ public:
                 // TODO here, calculate desired pose based off of pepper estimate
                 vader_msgs::Pepper pepper_estimate = req.pepper;
                 visualizePepper(pepper_estimate);
+                visual_tools->trigger();
                 // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
