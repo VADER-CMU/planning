@@ -1103,6 +1103,18 @@ public:
         // success &= cutter_planner_.execSync(cutter_plan.value());
 
         gripper_target_pose.position.z += 0.10; //lift pregrasp to help camera see peduncle
+        // Rotate gripper_target_pose by 20 degrees around its own Y axis
+        tf::Quaternion quat;
+        tf::quaternionMsgToTF(gripper_target_pose.orientation, quat);
+
+        // Create a quaternion representing a 20 degree rotation about Y axis
+        double angle_rad = 20.0 * M_PI / 180.0;
+        tf::Quaternion rot_y(tf::Vector3(0, 1, 0), angle_rad);
+
+        // Apply the rotation: rot_y * quat (local Y axis)
+        quat = rot_y * quat;
+        quat.normalize();
+        tf::quaternionTFToMsg(quat, gripper_target_pose.orientation);
 
         auto gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);
 
