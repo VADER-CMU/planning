@@ -1044,6 +1044,8 @@ public:
             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
         }
 
+        target_pose = translateByLocalZ(target_pose, -0.02); // extra inwards for cutter
+
         // Move cartesian to actual target pose
         if(success) {
             auto cartesian_plan = cutter_planner_.planGuidedCartesian(target_pose);// planCartesian(target_pose);
@@ -1194,6 +1196,7 @@ public:
         if(!success) {
             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
         }
+        removeSharedWorkspaceCollision();
 
         auto gripper_retract_plan = gripper_planner_.planGuidedCartesian(gripper_retract_pose);
         if(gripper_retract_plan == std::nullopt) {
@@ -1206,7 +1209,6 @@ public:
             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
         }
 
-        removeSharedWorkspaceCollision();
         returnCode = homeCutter();
         if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
             return returnCode;
