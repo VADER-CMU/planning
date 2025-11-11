@@ -9,7 +9,7 @@
 
     <arg name="gripper_home_pose" value="0.8 0.0 0.4 0 0.6992 0.2227 0.6794"/> <!-- xyz qx qy qz qw -->
     <arg name="cutter_home_pose" value="0.8 0.5 0.4 0 0.707 0 0.707"/>
-    <arg name="arm_spacing" value="0.5"/>  
+    <arg name="arm_spacing" value="0.52"/>  
 
     <arg name="arm_height_horizontal_mount" value="0.5"/>
     <param name="storage_bin_pose" value="$(arg storage_bin_pose)"/>

@@ -850,7 +850,7 @@ public:
         geometry_msgs::Pose ground_pose;
         ground_pose.position.x = 0.0;
         ground_pose.position.y = 0.0;
-        ground_pose.position.z = 0.15 - (ground_primitive.dimensions[2] / 2.0);
+        ground_pose.position.z = 0.05 - (ground_primitive.dimensions[2] / 2.0);
         ground_pose.orientation.w = 1.0; // No rotation
 
         ground_plane.primitives.push_back(ground_primitive);
@@ -1028,6 +1028,24 @@ public:
     }
 
     int cutterGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
+        auto gripper_current_pose = gripper_planner_.getCurrentPose();
+        ROS_WARN_STREAM("Current gripper end effector pose: ("
+                        << gripper_current_pose.position.x << ", "
+                        << gripper_current_pose.position.y << ", "
+                        << gripper_current_pose.position.z << "), quat (" 
+                        << gripper_current_pose.orientation.x << ", "
+                        << gripper_current_pose.orientation.y << ", "
+                        << gripper_current_pose.orientation.z << ", "
+                        << gripper_current_pose.orientation.w << ")");
+
+        ROS_WARN_STREAM("Cutter target pose: ("
+                        << target_pose.position.x << ", "
+                        << target_pose.position.y << ", "
+                        << target_pose.position.z << "), quat (" 
+                        << target_pose.orientation.x << ", "
+                        << target_pose.orientation.y << ", "
+                        << target_pose.orientation.z << ", "
+                        << target_pose.orientation.w << ")");
 
         geometry_msgs::Pose approach_pose = translateByLocalZ(target_pose, -final_approach_dist);
         visual_tools->publishAxisLabeled(approach_pose, "Cutter Approach Pose", rvt::SMALL);
@@ -1118,6 +1136,8 @@ public:
         quat.normalize();
         tf::quaternionTFToMsg(quat, gripper_target_pose.orientation);
 
+        gripper_target_pose.position.z += 0.03;
+
         auto gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);
 
         if(gripper_plan == std::nullopt) {
@@ -1184,6 +1204,7 @@ public:
         // auto gripper_plan = gripper_planner_.planGuidedCartesian(...); //TODO make it retract by same amount
         
         geometry_msgs::Pose cutter_retract_pose = translateByLocalZ(cutter_planner_.getCurrentPose(), -0.15);
+        cutter_retract_pose.position.z += 0.10; // extra up for cutter
         geometry_msgs::Pose gripper_retract_pose = translateByLocalZ(gripper_planner_.getCurrentPose(), -0.15);
 
         auto cutter_retract_plan = cutter_planner_.planGuidedCartesian(cutter_retract_pose);
@@ -1221,7 +1242,7 @@ public:
 
         // lower gripper to storage position
         geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
-        gripper_lowered_pose.position.z -= 0.1; // lower by 10 cm
+        gripper_lowered_pose.position.z -= 0.15; // lower by 10 cm
         auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
         if(gripper_lower_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
@@ -1273,7 +1294,7 @@ public:
                 // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 bool debug_PC_output = false;
                 auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, 3*M_PI/12, debug_PC_output);
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -3* M_PI/12, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -4* M_PI/12, debug_PC_output);
                 visual_tools->trigger();
 
                 setUpSharedWorkspaceCollision(0.15, 0.6);
@@ -1355,8 +1376,8 @@ public:
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
-                bool debug_PC_output = true;
-                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, final_approach_dist, 2*M_PI/12, debug_PC_output);
+                bool debug_PC_output = false;
+                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, final_approach_dist, 3*M_PI/12, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
                 geometry_msgs::Pose gripper_pregrasp_pose;
@@ -1420,7 +1441,7 @@ public:
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f",
                         pepper_estimate.peduncle_data.pose.position.x, pepper_estimate.peduncle_data.pose.position.y, pepper_estimate.peduncle_data.pose.position.z);
                 bool debug_PC_output = false;
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, -3*M_PI/12, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, -4*M_PI/12, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
                 geometry_msgs::Pose cutter_pregrasp_pose;
