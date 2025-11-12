@@ -64,9 +64,10 @@ const double cartesian_threshold = 0.9;
 
 const std::string GRIPPER_MOVE_GROUP = "L_xarm7";
 const std::string CUTTER_MOVE_GROUP = "R_xarm7";
-
-const std::vector<double> gripper_arm_home_joint_positions = {75.2 * (M_PI / 180.0), -89.8 * (M_PI / 180.0), -2.4 * (M_PI / 180.0), 58.8 * (M_PI / 180.0), 26.7 * (M_PI / 180.0), 20.9 * (M_PI / 180.0), 75.1 * (M_PI / 180.0)};
-const std::vector<double> cutter_arm_home_joint_positions = {-84.6 * (M_PI / 180.0), -85.2 * (M_PI / 180.0), 13.2 * (M_PI / 180.0), 63.6 * (M_PI / 180.0), -22.5 * (M_PI / 180.0), 21.1 * (M_PI / 180.0), 210.5 * (M_PI / 180.0)};
+const std::vector<double> gripper_arm_home_joint_positions = {58.3 * (M_PI / 180.0), -107.9 * (M_PI / 180.0), -0.6 * (M_PI / 180.0), 54 * (M_PI / 180.0), 25.3 * (M_PI / 180.0), 40.6 * (M_PI / 180.0), 94.4* (M_PI / 180.0)};
+const std::vector<double> cutter_arm_home_joint_positions = {-58.3 * (M_PI / 180.0), -107.9 * (M_PI / 180.0), 0.6 * (M_PI / 180.0), 54 * (M_PI / 180.0), -25.3 * (M_PI / 180.0), 40.6 * (M_PI / 180.0), 178.2 * (M_PI / 180.0)};
+// const std::vector<double> gripper_arm_home_joint_positions = {75.2 * (M_PI / 180.0), -89.8 * (M_PI / 180.0), -2.4 * (M_PI / 180.0), 58.8 * (M_PI / 180.0), 26.7 * (M_PI / 180.0), 20.9 * (M_PI / 180.0), 75.1 * (M_PI / 180.0)};
+// const std::vector<double> cutter_arm_home_joint_positions = {-84.6 * (M_PI / 180.0), -85.2 * (M_PI / 180.0), 13.2 * (M_PI / 180.0), 63.6 * (M_PI / 180.0), -22.5 * (M_PI / 180.0), 21.1 * (M_PI / 180.0), 210.5 * (M_PI / 180.0)};
 
 const std::vector<double> gripper_arm_storage_joint_positions = {80 * (M_PI / 180.0), -39.9 * (M_PI / 180.0), 11.2 * (M_PI / 180.0), 31.4 * (M_PI / 180.0), 0 * (M_PI / 180.0), 68.3 * (M_PI / 180.0), 84.7 * (M_PI / 180.0)};
 
