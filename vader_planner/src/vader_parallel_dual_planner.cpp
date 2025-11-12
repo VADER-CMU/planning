@@ -1128,7 +1128,7 @@ public:
         tf::quaternionMsgToTF(gripper_target_pose.orientation, quat);
 
         // Create a quaternion representing a 20 degree rotation about Y axis
-        double angle_rad = 20.0 * M_PI / 180.0;
+        double angle_rad = 30.0 * M_PI / 180.0;
         tf::Quaternion rot_y(tf::Vector3(0, 1, 0), angle_rad);
 
         // Apply the rotation: rot_y * quat (local Y axis)
