@@ -58,10 +58,16 @@ calib3.transform.translation.x = 0.0
 calib3.transform.translation.y = -0.060
 calib3.transform.translation.z = 0.107
 
-calib3.transform.rotation.x = -0.5
-calib3.transform.rotation.y = -0.5
-calib3.transform.rotation.z = -0.5
-calib3.transform.rotation.w = 0.5
+# calib3.transform.rotation.x = -0.5
+# calib3.transform.rotation.y = -0.5
+# calib3.transform.rotation.z = -0.5
+# calib3.transform.rotation.w = 0.5
+
+# After righting the camera
+calib3.transform.rotation.x = 0.707
+calib3.transform.rotation.y = 0
+calib3.transform.rotation.z = 0.707
+calib3.transform.rotation.w = 0
 
 
 
