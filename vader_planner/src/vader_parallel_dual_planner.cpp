@@ -65,9 +65,7 @@ const double cartesian_threshold = 0.9;
 const std::string GRIPPER_MOVE_GROUP = "L_xarm7";
 const std::string CUTTER_MOVE_GROUP = "R_xarm7";
 const std::vector<double> gripper_arm_home_joint_positions = {58.3 * (M_PI / 180.0), -107.9 * (M_PI / 180.0), -0.6 * (M_PI / 180.0), 54 * (M_PI / 180.0), 25.3 * (M_PI / 180.0), 40.6 * (M_PI / 180.0), 94.4* (M_PI / 180.0)};
-const std::vector<double> cutter_arm_home_joint_positions = {-58.3 * (M_PI / 180.0), -107.9 * (M_PI / 180.0), 0.6 * (M_PI / 180.0), 54 * (M_PI / 180.0), -25.3 * (M_PI / 180.0), 40.6 * (M_PI / 180.0), 178.2 * (M_PI / 180.0)};
-// const std::vector<double> gripper_arm_home_joint_positions = {75.2 * (M_PI / 180.0), -89.8 * (M_PI / 180.0), -2.4 * (M_PI / 180.0), 58.8 * (M_PI / 180.0), 26.7 * (M_PI / 180.0), 20.9 * (M_PI / 180.0), 75.1 * (M_PI / 180.0)};
-// const std::vector<double> cutter_arm_home_joint_positions = {-84.6 * (M_PI / 180.0), -85.2 * (M_PI / 180.0), 13.2 * (M_PI / 180.0), 63.6 * (M_PI / 180.0), -22.5 * (M_PI / 180.0), 21.1 * (M_PI / 180.0), 210.5 * (M_PI / 180.0)};
+const std::vector<double> cutter_arm_home_joint_positions = {-58.3 * (M_PI / 180.0), -107.9 * (M_PI / 180.0), 0.6 * (M_PI / 180.0), 54 * (M_PI / 180.0), 154.9 * (M_PI / 180.0), -4.4 * (M_PI / 180.0), 1 * (M_PI / 180.0)};
 
 const std::vector<double> gripper_arm_storage_joint_positions = {80 * (M_PI / 180.0), -39.9 * (M_PI / 180.0), 11.2 * (M_PI / 180.0), 31.4 * (M_PI / 180.0), 0 * (M_PI / 180.0), 68.3 * (M_PI / 180.0), 84.7 * (M_PI / 180.0)};
 
@@ -1032,23 +1030,23 @@ public:
 
     int cutterGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
         auto gripper_current_pose = gripper_planner_.getCurrentPose();
-        ROS_WARN_STREAM("Current gripper end effector pose: ("
-                        << gripper_current_pose.position.x << ", "
-                        << gripper_current_pose.position.y << ", "
-                        << gripper_current_pose.position.z << "), quat (" 
-                        << gripper_current_pose.orientation.x << ", "
-                        << gripper_current_pose.orientation.y << ", "
-                        << gripper_current_pose.orientation.z << ", "
-                        << gripper_current_pose.orientation.w << ")");
+        // ROS_WARN_STREAM("Current gripper end effector pose: ("
+        //                 << gripper_current_pose.position.x << ", "
+        //                 << gripper_current_pose.position.y << ", "
+        //                 << gripper_current_pose.position.z << "), quat (" 
+        //                 << gripper_current_pose.orientation.x << ", "
+        //                 << gripper_current_pose.orientation.y << ", "
+        //                 << gripper_current_pose.orientation.z << ", "
+        //                 << gripper_current_pose.orientation.w << ")");
 
-        ROS_WARN_STREAM("Cutter target pose: ("
-                        << target_pose.position.x << ", "
-                        << target_pose.position.y << ", "
-                        << target_pose.position.z << "), quat (" 
-                        << target_pose.orientation.x << ", "
-                        << target_pose.orientation.y << ", "
-                        << target_pose.orientation.z << ", "
-                        << target_pose.orientation.w << ")");
+        // ROS_WARN_STREAM("Cutter target pose: ("
+        //                 << target_pose.position.x << ", "
+        //                 << target_pose.position.y << ", "
+        //                 << target_pose.position.z << "), quat (" 
+        //                 << target_pose.orientation.x << ", "
+        //                 << target_pose.orientation.y << ", "
+        //                 << target_pose.orientation.z << ", "
+        //                 << target_pose.orientation.w << ")");
 
         geometry_msgs::Pose approach_pose = translateByLocalZ(target_pose, -final_approach_dist);
         visual_tools->publishAxisLabeled(approach_pose, "Cutter Approach Pose", rvt::SMALL);
@@ -1066,6 +1064,7 @@ public:
         }
 
         target_pose = translateByLocalZ(target_pose, -0.02); // extra inwards for cutter
+        target_pose.position.z += 0.02; //a bit farther up
 
         // Move cartesian to actual target pose
         if(success) {
@@ -1274,7 +1273,7 @@ public:
 
                 visual_tools->deleteAllMarkers();
                 res.result = homeGripper();
-                setUpSharedWorkspaceCollision(0.25, 0.6);
+                setUpSharedWorkspaceCollision(0.25, 0.55);
                 break;
             }
             case vader_msgs::PlanningRequest::Request::PARALLEL_MOVE_PREGRASP:
@@ -1295,12 +1294,22 @@ public:
                 // pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
                 // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
                 // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
-                bool debug_PC_output = false;
+                bool debug_PC_output = true;
                 auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, 3*M_PI/12, debug_PC_output);
                 auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -6* M_PI/12, debug_PC_output);
                 visual_tools->trigger();
 
-                setUpSharedWorkspaceCollision(0.15, 0.6);
+                double dynamic_y = 0;
+                if (pepper_estimate.fruit_data.pose.position.y - 0.07 < 0.1) {
+                    dynamic_y = 0.1;
+                }
+                else if (pepper_estimate.fruit_data.pose.position.y - 0.07 > 0.4) {
+                    dynamic_y = 0.4;
+                }
+                else {
+                    dynamic_y = pepper_estimate.fruit_data.pose.position.y - 0.07;
+                }
+                setUpSharedWorkspaceCollision(dynamic_y, 0.55);
 
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
@@ -1316,7 +1325,7 @@ public:
                     {
                         ROS_INFO("Found valid IK pose for gripper pregrasp.");
                         gripper_pregrasp_pose = gripper_test_pose;
-                        visual_tools->deleteAllMarkers();
+                        // visual_tools->deleteAllMarkers();
                         visual_tools->publishAxisLabeled(gripper_test_pose, "Gripper Pregrasp", rvt::MEDIUM);
                         found_valid_poses = true;
                         break;
