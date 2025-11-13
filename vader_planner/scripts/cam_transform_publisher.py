@@ -9,21 +9,21 @@ rospy.init_node('handeye_calibration_publisher')
 while rospy.get_time() == 0.0:
     pass
 
-calib = geometry_msgs.msg.TransformStamped()
-calib.header.stamp = rospy.Time.now()
-calib.header.frame_id = "L_link_eef"
-calib.child_frame_id = "camera_link"
-calib.transform.translation.x = 0.0
-calib.transform.translation.y = 0.0
-calib.transform.translation.z = 0.08 #8cm from end effector plane to top of camera
+# calib = geometry_msgs.msg.TransformStamped()
+# calib.header.stamp = rospy.Time.now()
+# calib.header.frame_id = "L_link_eef"
+# calib.child_frame_id = "camera_link"
+# calib.transform.translation.x = 0.0
+# calib.transform.translation.y = 0.0
+# calib.transform.translation.z = 0.08 #8cm from end effector plane to top of camera
 
 # Rotation: rotate 180 deg by X and 180 deg by Z
 # In HRI file, x/y/z should be used as normal and not flipped like PR4. This should be correct for gripper link
 # Verify this with https://www.andre-gaschler.com/rotationconverter/
-calib.transform.rotation.x = .5
-calib.transform.rotation.y = -.5
-calib.transform.rotation.z = .5
-calib.transform.rotation.w = .5
+# calib.transform.rotation.x = .5
+# calib.transform.rotation.y = -.5
+# calib.transform.rotation.z = .5
+# calib.transform.rotation.w = .5
 broadcaster = tf2_ros.StaticTransformBroadcaster()
 # broadcaster.sendTransform(calib)
 # print("transform sent")
@@ -36,7 +36,7 @@ calib2.header.frame_id = "L_link_eef"
 calib2.child_frame_id = "gripper_cam_link"
 calib2.transform.translation.x = 0.0
 calib2.transform.translation.y = 0.0
-calib2.transform.translation.z = 0.08 #8cm from end effector plane to top of camera
+calib2.transform.translation.z = 0.093 #8cm from end effector plane to top of camera
 
 # Rotation: rotate 180 deg by X and 180 deg by Z
 # In HRI file, x/y/z should be used as normal and not flipped like PR4. This should be correct for gripper link
@@ -78,9 +78,9 @@ while not rospy.is_shutdown():
     # Update timestamps if needed for dynamic transforms
     calib3.header.stamp = rospy.Time.now()
     calib2.header.stamp = rospy.Time.now()
-    calib.header.stamp = rospy.Time.now()
+    # calib.header.stamp = rospy.Time.now()
 
     broadcaster.sendTransform(calib3)
     broadcaster.sendTransform(calib2)
-    broadcaster.sendTransform(calib)
+    # broadcaster.sendTransform(calib)
     rate.sleep()

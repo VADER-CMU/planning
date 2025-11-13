@@ -1013,6 +1013,8 @@ public:
             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
         }
 
+        target_pose.position.z += 0.01; //reach higher
+
         plan = gripper_planner_.planGuidedCartesian(target_pose);// planCartesian(target_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper final approach movement.");
@@ -1125,19 +1127,19 @@ public:
 
         gripper_target_pose.position.z += 0.10; //lift pregrasp to help camera see peduncle
         // Rotate gripper_target_pose by 20 degrees around its own Y axis
-        tf::Quaternion quat;
-        tf::quaternionMsgToTF(gripper_target_pose.orientation, quat);
+        // tf::Quaternion quat;
+        // tf::quaternionMsgToTF(gripper_target_pose.orientation, quat);
 
         // Create a quaternion representing a 20 degree rotation about Y axis
-        double angle_rad = 30.0 * M_PI / 180.0;
-        tf::Quaternion rot_y(tf::Vector3(0, 1, 0), angle_rad);
+        // double angle_rad = 30.0 * M_PI / 180.0;
+        // tf::Quaternion rot_y(tf::Vector3(0, 1, 0), angle_rad);
 
-        // Apply the rotation: rot_y * quat (local Y axis)
-        quat = rot_y * quat;
-        quat.normalize();
-        tf::quaternionTFToMsg(quat, gripper_target_pose.orientation);
+        // // Apply the rotation: rot_y * quat (local Y axis)
+        // quat = rot_y * quat;
+        // quat.normalize();
+        // tf::quaternionTFToMsg(quat, gripper_target_pose.orientation);
 
-        gripper_target_pose.position.z += 0.03;
+        // gripper_target_pose.position.z += 0.03;
 
         auto gripper_plan = gripper_planner_.planGuidedCartesian(gripper_target_pose);
 
@@ -1295,7 +1297,7 @@ public:
                 // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 bool debug_PC_output = false;
                 auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, 3*M_PI/12, debug_PC_output);
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -4* M_PI/12, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -6* M_PI/12, debug_PC_output);
                 visual_tools->trigger();
 
                 setUpSharedWorkspaceCollision(0.15, 0.6);
@@ -1413,7 +1415,7 @@ public:
                 // Translate the target pose along its local -Z axis by final_approach_dist
                 tf::Quaternion tq;
                 tf::quaternionMsgToTF(gripper_pregrasp_pose.orientation, tq);
-                tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, 0.2));
+                tf::Vector3 world_offset = tf::quatRotate(tq, tf::Vector3(0.0, 0.0, 0.17));
                 gripper_pregrasp_pose.position.x += world_offset.x();
                 gripper_pregrasp_pose.position.y += world_offset.y();
                 gripper_pregrasp_pose.position.z += world_offset.z();
@@ -1442,7 +1444,7 @@ public:
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f",
                         pepper_estimate.peduncle_data.pose.position.x, pepper_estimate.peduncle_data.pose.position.y, pepper_estimate.peduncle_data.pose.position.z);
                 bool debug_PC_output = false;
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, -4*M_PI/12, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, -6*M_PI/12, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
                 geometry_msgs::Pose cutter_pregrasp_pose;
