@@ -62,12 +62,18 @@ const double eef_step = 0.01;//0.005;
 const double maxV_scale_factor = 0.3;
 const double cartesian_threshold = 0.9;
 
+const double DEG2RAD = (M_PI / 180.0);
+
+const double INV_KINEMATICS_SOLUTION_TIME_LIMIT_SEC = 1.0; //0.1
+const double GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS = M_PI/4;
+const double CUTTER_GRASP_DIRECTION_OFFSET_RADIANS = -M_PI/4;
+
 const std::string GRIPPER_MOVE_GROUP = "L_xarm7";
 const std::string CUTTER_MOVE_GROUP = "R_xarm7";
-const std::vector<double> gripper_arm_home_joint_positions = {58.3 * (M_PI / 180.0), -107.9 * (M_PI / 180.0), -0.6 * (M_PI / 180.0), 54 * (M_PI / 180.0), 25.3 * (M_PI / 180.0), 40.6 * (M_PI / 180.0), 94.4* (M_PI / 180.0)};
-const std::vector<double> cutter_arm_home_joint_positions = {-58.3 * (M_PI / 180.0), -107.9 * (M_PI / 180.0), 0.6 * (M_PI / 180.0), 54 * (M_PI / 180.0), 154.9 * (M_PI / 180.0), -4.4 * (M_PI / 180.0), 1 * (M_PI / 180.0)};
+const std::vector<double> gripper_arm_home_joint_positions = {58.3 * DEG2RAD, -107.9 * DEG2RAD, -0.6 * DEG2RAD, 54 * DEG2RAD, 25.3 * DEG2RAD, 40.6 * DEG2RAD, 94.4* DEG2RAD};
+const std::vector<double> cutter_arm_home_joint_positions = {-58.3 * DEG2RAD, -107.9 * DEG2RAD, 0.6 * DEG2RAD, 54 * DEG2RAD, -25.3 * DEG2RAD, 40.6 * DEG2RAD, 178.2 * DEG2RAD};
 
-const std::vector<double> gripper_arm_storage_joint_positions = {80 * (M_PI / 180.0), -39.9 * (M_PI / 180.0), 11.2 * (M_PI / 180.0), 31.4 * (M_PI / 180.0), 0 * (M_PI / 180.0), 68.3 * (M_PI / 180.0), 84.7 * (M_PI / 180.0)};
+const std::vector<double> gripper_arm_storage_joint_positions = {80 * DEG2RAD, -39.9 * DEG2RAD, 11.2 * DEG2RAD, 31.4 * DEG2RAD, 0 * DEG2RAD, 68.3 * DEG2RAD, 84.7 * DEG2RAD};
 
 namespace rvt = rviz_visual_tools;
 
@@ -322,7 +328,7 @@ public:
         const moveit::core::JointModelGroup* joint_model_group = state_copy.getJointModelGroup(GRIPPER_MOVE_GROUP);
 
         // Check if the pose is reachable
-        bool found_ik = state_copy.setFromIK(joint_model_group, target_pose, 0.1);
+        bool found_ik = state_copy.setFromIK(joint_model_group, target_pose, INV_KINEMATICS_SOLUTION_TIME_LIMIT_SEC);
         return found_ik;
     }
 
@@ -365,7 +371,7 @@ public:
             ROS_INFO("=== Parametric Circle Pose Queue ===");
         }
 
-        std::vector<double> test_radii = {approach_dist, 0.3, 0.2, 0.35, 0.15, 0.4};
+        std::vector<double> test_radii = {approach_dist}; //, 0.3, 0.2, 0.35, 0.15, 0.4};
         
         for (size_t r_idx = 0; r_idx < test_radii.size(); r_idx++)
         {
@@ -374,7 +380,7 @@ public:
             std::vector<double> angle_offsets;
             if (r_idx == 0)
             {
-                angle_offsets = {angle_offset_manipulator, angle_offset_manipulator + M_PI/6,  angle_offset_manipulator + 11*M_PI/6,  angle_offset_manipulator + 2*M_PI/6,  angle_offset_manipulator + 10*M_PI/6}; //3*M_PI/6, 4*M_PI/6, 5*M_PI/6, 6*M_PI/6, 7*M_PI/6, 8*M_PI/6, 9*M_PI/6,;
+                angle_offsets = {angle_offset_manipulator, angle_offset_manipulator + M_PI/6,  angle_offset_manipulator - M_PI/6,  angle_offset_manipulator + 2*M_PI/6,  angle_offset_manipulator - 2*M_PI/6}; //3*M_PI/6, 4*M_PI/6, 5*M_PI/6, 6*M_PI/6, 7*M_PI/6, 8*M_PI/6, 9*M_PI/6,;
             }
             else
             {
@@ -606,10 +612,10 @@ public:
     
     bool testPoseIK(const geometry_msgs::Pose& target_pose) {
         moveit::core::RobotState state_copy = *move_group_.getCurrentState();
-        const moveit::core::JointModelGroup* joint_model_group = state_copy.getJointModelGroup(GRIPPER_MOVE_GROUP);
+        const moveit::core::JointModelGroup* joint_model_group = state_copy.getJointModelGroup(CUTTER_MOVE_GROUP);
 
         // Check if the pose is reachable
-        bool found_ik = state_copy.setFromIK(joint_model_group, target_pose, 0.1);
+        bool found_ik = state_copy.setFromIK(joint_model_group, target_pose, INV_KINEMATICS_SOLUTION_TIME_LIMIT_SEC);
         return found_ik;
     }
 
@@ -650,7 +656,7 @@ public:
             ROS_INFO("=== Parametric Circle Pose Queue ===");
         }
 
-        std::vector<double> test_radii = {approach_dist, 0.3, 0.2, 0.35, 0.15, 0.4};
+        std::vector<double> test_radii = {approach_dist};//, 0.3, 0.2, 0.35, 0.15, 0.4};
         
         for (size_t r_idx = 0; r_idx < test_radii.size(); r_idx++)
         {
@@ -659,7 +665,7 @@ public:
             std::vector<double> angle_offsets;
             if (r_idx == 0)
             {
-                angle_offsets = {angle_offset_manipulator, angle_offset_manipulator + M_PI/6,  angle_offset_manipulator + 11*M_PI/6,  angle_offset_manipulator + 2*M_PI/6,  angle_offset_manipulator + 10*M_PI/6}; //3*M_PI/6, 4*M_PI/6, 5*M_PI/6, 6*M_PI/6, 7*M_PI/6, 8*M_PI/6, 9*M_PI/6,};
+                angle_offsets = {angle_offset_manipulator, angle_offset_manipulator + M_PI/6,  angle_offset_manipulator - M_PI/6,  angle_offset_manipulator + 2*M_PI/6,  angle_offset_manipulator- 2*M_PI/6}; //3*M_PI/6, 4*M_PI/6, 5*M_PI/6, 6*M_PI/6, 7*M_PI/6, 8*M_PI/6, 9*M_PI/6,};
             }
             else
             {
@@ -1124,7 +1130,6 @@ public:
         // show_trails(std::nullopt, cutter_plan);
         // success &= cutter_planner_.execSync(cutter_plan.value());
 
-        gripper_target_pose.position.z += 0.10; //lift pregrasp to help camera see peduncle
         // Rotate gripper_target_pose by 20 degrees around its own Y axis
         // tf::Quaternion quat;
         // tf::quaternionMsgToTF(gripper_target_pose.orientation, quat);
@@ -1261,7 +1266,6 @@ public:
 
     bool planningServiceHandler(vader_msgs::PlanningRequest::Request &req,
                                 vader_msgs::PlanningRequest::Response &res) {
-        // Implement planning service logic here
         switch(req.mode) {
             case vader_msgs::PlanningRequest::Request::HOME_CUTTER:{
 
@@ -1285,6 +1289,10 @@ public:
                 ROS_INFO("Pepper estimate Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
 
+                
+                pepper_estimate.fruit_data.pose.position.z += 0.10; //lift pregrasp to help camera see peduncle
+                pepper_estimate.peduncle_data.pose.position.z += 0.10; //Same for cutter cam
+
                 // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
                 // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
@@ -1295,8 +1303,8 @@ public:
                 // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
                 // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 bool debug_PC_output = true;
-                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, 3*M_PI/12, debug_PC_output);
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, -6* M_PI/12, debug_PC_output);
+                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, CUTTER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
                 visual_tools->trigger();
 
                 double dynamic_y = 0;
@@ -1355,6 +1363,8 @@ public:
                         visual_tools->publishAxisLabeled(cutter_test_pose, "Cutter Pregrasp", rvt::MEDIUM);
                         found_valid_poses = true;
                         break;
+                    } else {
+                        ROS_WARN_STREAM("Discarding pose due to failed IK: (" << cutter_test_pose.position.x << ", " << cutter_test_pose.position.y << ", " << cutter_test_pose.position.z << ")." );
                     }
                 }
                 if (!found_valid_poses)
@@ -1366,6 +1376,7 @@ public:
                     return res.success;
                 }
                 visual_tools->trigger();
+                
                 res.result = parallelMovePregrasp(gripper_pregrasp_pose, cutter_pregrasp_pose);
                 break;
             }
@@ -1388,8 +1399,8 @@ public:
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
                         pepper_estimate.fruit_data.pose.position.x, pepper_estimate.fruit_data.pose.position.y, pepper_estimate.fruit_data.pose.position.z);
-                bool debug_PC_output = false;
-                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, final_approach_dist, 3*M_PI/12, debug_PC_output);
+                bool debug_PC_output = true;
+                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, final_approach_dist, GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
                 geometry_msgs::Pose gripper_pregrasp_pose;
@@ -1452,8 +1463,8 @@ public:
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f",
                         pepper_estimate.peduncle_data.pose.position.x, pepper_estimate.peduncle_data.pose.position.y, pepper_estimate.peduncle_data.pose.position.z);
-                bool debug_PC_output = false;
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, -6*M_PI/12, debug_PC_output);
+                bool debug_PC_output = true;
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, final_approach_dist, CUTTER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
                 // Test IK for each pose in the queue until we find one that is valid
                 bool found_valid_poses = false;
                 geometry_msgs::Pose cutter_pregrasp_pose;
