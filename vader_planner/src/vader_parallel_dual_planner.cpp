@@ -62,7 +62,7 @@ const double cartesian_threshold = 0.9;
 const double DEG2RAD = (M_PI / 180.0);
 
 const double INV_KINEMATICS_SOLUTION_TIME_LIMIT_SEC = 0.1;
-const double GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS = M_PI/4;
+const double GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS = M_PI/6;
 const double CUTTER_GRASP_DIRECTION_OFFSET_RADIANS = -M_PI/4;
 
 const double STORAGE_LOWER_Z_METER = 0.15;
@@ -1043,19 +1043,19 @@ public:
                 pepper_estimate.peduncle_data.pose.position.z += 0.10; //Same for cutter cam
 
                 bool debug_PC_output = false;
-                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, CUTTER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
+                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.2, GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.2, CUTTER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
                 visual_tools->trigger();
 
                 double dynamic_y = 0;
-                if (pepper_estimate.fruit_data.pose.position.y - 0.07 < 0.1) {
+                if (pepper_estimate.fruit_data.pose.position.y < 0.1) {
                     dynamic_y = 0.1;
                 }
-                else if (pepper_estimate.fruit_data.pose.position.y - 0.07 > 0.4) {
+                else if (pepper_estimate.fruit_data.pose.position.y > 0.4) {
                     dynamic_y = 0.4;
                 }
                 else {
-                    dynamic_y = pepper_estimate.fruit_data.pose.position.y - 0.07;
+                    dynamic_y = pepper_estimate.fruit_data.pose.position.y;
                 }
                 setUpSharedWorkspaceCollision(dynamic_y, 0.55);
 
