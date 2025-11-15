@@ -134,7 +134,7 @@ class PlannerTester
     void create_ground_plane();
     void add_block(double length, double width, double height, double x, double y, double z, const std::string& block_id = "");
     
-
+    void generateHoleInWallBlocks(double wall_x);
     void generate_random_blocks();
     bool is_position_valid(double x, double y, double z, double length, double width, double height);
     bool intersects_with_arm_base(double x, double y, double z, double length, double width, double height);
@@ -161,13 +161,24 @@ void PlannerTester::init()
   
   rng.seed(42);
   
-  fixed_goal_pose.position.x = 0.5;
+  //Random blocks goal
+//   fixed_goal_pose.position.x = 0.5;
+//   fixed_goal_pose.position.y = 0.0;
+//   fixed_goal_pose.position.z = 0.4;
+//   fixed_goal_pose.orientation.w = 1.0;
+//   fixed_goal_pose.orientation.x = 0.0;
+//   fixed_goal_pose.orientation.y = 0.0;
+//   fixed_goal_pose.orientation.z = 0.0;
+
+  //Hole in wall
+  double wall_x = 0.5;
+  fixed_goal_pose.position.x = wall_x; //+ 0.05;
   fixed_goal_pose.position.y = 0.0;
   fixed_goal_pose.position.z = 0.4;
-  fixed_goal_pose.orientation.w = 1.0;
-  fixed_goal_pose.orientation.x = 0.0;
-  fixed_goal_pose.orientation.y = 0.0;
-  fixed_goal_pose.orientation.z = 0.0;
+  fixed_goal_pose.orientation.w = 0.0;
+  fixed_goal_pose.orientation.x = 0.707;
+  fixed_goal_pose.orientation.y = 0.0;//0.0;
+  fixed_goal_pose.orientation.z = 0.707;
 
   yaml_config_path = "/home/docker_ws/src/planning/vader_planner/config/planner_tester_ompl.yaml";
   
@@ -180,8 +191,8 @@ void PlannerTester::init()
   create_ground_plane();
   
   ros::Duration(1.0).sleep();
-  
-  generate_random_blocks();
+//   generateHoleInWallBlocks(wall_x);
+//   generate_random_blocks();
 }
 
 void PlannerTester::start()
@@ -316,6 +327,39 @@ void PlannerTester::add_block(double length, double width, double height, double
 
     ROS_INFO("Block '%s' (%.2fx%.2fx%.2f) added at position (%.2f, %.2f, %.2f)", 
              block.id.c_str(), length, width, height, x, y, z);
+}
+
+void PlannerTester::generateHoleInWallBlocks(double wall_x) {
+    // Create vertical wall with hole in center
+    // double wall_x = 0.4;  // Wall position in front of arm
+    double wall_thickness = 0.05;
+    double wall_height = 0.8;
+    double wall_width = 0.8;
+    double hole_width = 0.3;
+    double hole_height = 0.3;
+    double wall_center_y = 0.0;
+    double wall_center_z = 0.4;
+
+    // Create wall segments around the hole
+    double side_width = (wall_width - hole_width) / 2;
+    // Bottom segment
+
+    add_block(wall_thickness, wall_width, (wall_center_z - hole_height/2), 
+              wall_x, wall_center_y, (wall_center_z - hole_height/2)/2, "wall_bottom");
+    // Top segment  
+    add_block(wall_thickness, wall_width, (wall_height - wall_center_z - hole_height/2),
+              wall_x, wall_center_y, wall_center_z + hole_height/2 + (wall_height - wall_center_z - hole_height/2)/2, "wall_top");
+
+    // Left segment - positioned at left edge
+
+    add_block(wall_thickness, side_width, hole_height,
+              wall_x, -wall_width/2 + side_width/2, wall_center_z, "wall_left");
+
+    // Right segment - positioned at right edge
+    add_block(wall_thickness, side_width, hole_height,
+              wall_x, wall_width/2 - side_width/2, wall_center_z, "wall_right");
+
+    ROS_INFO("Generated vertical wall with hole at x=%.2f for arm passage", wall_x);
 }
 
 void PlannerTester::generate_random_blocks()
