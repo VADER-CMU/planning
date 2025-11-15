@@ -2,11 +2,10 @@
     <arg name="robot_ip_1"/> 
     <arg name="robot_ip_2"/>
 
-    <arg name="bin_xyz" value="0 0.35 0."/>
+    <arg name="bin_xyz" value="0 0.35 0.05"/>
 
     <arg name="arm_spacing" value="0.52"/>  
     <arg name="arm_height_horizontal_mount" value="0.5"/>
-
 
     <arg name="robot_dof" default="7" />
     <!-- load the default move_group planner (not xarm_simple_planner) -->
