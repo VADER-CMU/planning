@@ -122,26 +122,6 @@ public:
             ROS_INFO_NAMED("vader_planner", "Initialized VADER Gripper Planner");
         }
 
-    // // Plan a Cartesian path
-    // std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planCartesian(const geometry_msgs::Pose& target_pose) {
-    //     std::vector<geometry_msgs::Pose> waypoints;
-    //     waypoints.push_back(target_pose);
-    //     move_group_.setMaxVelocityScalingFactor(maxV_scale_factor);
-
-    //     moveit_msgs::RobotTrajectory trajectory;
-    //     double fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
-        
-    //     if (fraction >= cartesian_threshold) {
-    //         ROS_INFO_NAMED("vader_planner", "Gripper cartesian path computed successfully.");
-    //         moveit::planning_interface::MoveGroupInterface::Plan plan;
-    //         plan.trajectory_ = trajectory;
-    //         return plan;
-    //     } else {
-    //         ROS_ERROR_NAMED("vader_planner", "Gripper cartesian path computation failed with coverage fraction: %f", fraction);
-    //         return std::nullopt;
-    //     }
-    // }
-
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planGuidedCartesian(const geometry_msgs::Pose& target_pose) {
         move_group_.setStartStateToCurrentState();
         auto current_pose = move_group_.getCurrentPose().pose;
@@ -176,20 +156,8 @@ public:
         move_group_.setMaxVelocityScalingFactor(0.2);
         move_group_.setMaxAccelerationScalingFactor(0.1);
         moveit_msgs::RobotTrajectory trajectory;
-        double fraction = 0.0;
-        
-        // while(fraction < cartesian_threshold) {
-        // ROS_INFO_NAMED("vader_planner", "Retry with fraction: %f", fraction);
-        fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
-        // }
-        // for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
-        //     trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
-        //     if(i % 5 == 0){
-        //         std::cout << point.time_from_start << ", " ;
-        //     }
-        //     // point.time_from_start = ros::Duration(i*0.05);
-        // }
-        // std::cout << "\n";
+
+        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
 
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         plan.trajectory_ = trajectory;
@@ -205,11 +173,6 @@ public:
 
     // Plan using RRT (default MoveIt planner)
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planRRT(const geometry_msgs::Pose& target_pose) {
-        auto curr_pose = move_group_.getCurrentPose().pose;
-
-        ROS_WARN_NAMED("vader_planner", "current pose: position=(%f, %f, %f) quat=(%f, %f, %f, %f)",
-                        curr_pose.position.x, curr_pose.position.y, curr_pose.position.z,
-                        curr_pose.orientation.x, curr_pose.orientation.y, curr_pose.orientation.z, curr_pose.orientation.w);
         move_group_.setPoseTarget(target_pose);
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         ROS_WARN_NAMED("vader_planner", "Planning for gripper...");
@@ -225,15 +188,15 @@ public:
     bool alreadyAtJointPositions(const std::vector<double>& joint_positions) {
         std::vector<double> current_joints = move_group_.getCurrentJointValues();
 
-        std::cout << "curr: ";
-        for(auto joint_val : current_joints) {
-            std::cout << joint_val << ", ";
-        }
-        std::cout << "\ntgt: ";
-        for (auto joint_val : joint_positions) {
-            std::cout << joint_val << ", ";
-        }
-        std::cout << "\n";  
+        // std::cout << "curr: ";
+        // for(auto joint_val : current_joints) {
+        //     std::cout << joint_val << ", ";
+        // }
+        // std::cout << "\ntgt: ";
+        // for (auto joint_val : joint_positions) {
+        //     std::cout << joint_val << ", ";
+        // }
+        // std::cout << "\n";  
 
         // Calculate norm between current and target joint positions
         double norm = 0.0;
@@ -255,7 +218,7 @@ public:
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planToJointPositions(const std::vector<double>& joint_positions) {
         move_group_.setJointValueTarget(joint_positions);
         moveit::planning_interface::MoveGroupInterface::Plan plan;
-        ROS_WARN_NAMED("vader_planner", "Planning for gripper to joint positions...");
+        // ROS_WARN_NAMED("vader_planner", "Planning for gripper to joint positions...");
 
         if(move_group_.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS) {
             ROS_WARN_NAMED("vader_planner", "Gripper joint position plan computed.");
@@ -264,54 +227,6 @@ public:
         ROS_ERROR_NAMED("vader_planner", "Gripper joint position planning failed.");
         return std::nullopt;
     }
-
-    // void printPlanDebugInfo(const moveit::planning_interface::MoveGroupInterface& move_group_,
-    //                         const moveit::planning_interface::MoveGroupInterface::Plan& plan)
-    // {
-    //     // Print Planning Frame and End Effector Link
-    //     std::cout << "Planning frame: " << move_group_.getPlanningFrame() << std::endl;
-    //     std::cout << "End effector link: " << move_group_.getEndEffectorLink() << std::endl;
-
-    //     // Print current robot state joint names and positions
-    //     auto current_state = move_group_.getCurrentState();
-    //     const std::vector<std::string>& joint_names = current_state->getJointModelGroup(move_group_.getName())->getVariableNames();
-    //     std::cout << "Current Robot State Joints:" << std::endl;
-    //     for (const auto& joint_name : joint_names)
-    //     {
-    //         double pos = current_state->getVariablePosition(joint_name);
-    //         std::cout << "  " << joint_name << ": " << pos << std::endl;
-    //     }
-
-    //     // auto start_state_ptr = move_group_.getStartState(); // in impl but not interface
-
-
-    //     // // auto start_state_plan = plan.start_state_;
-    //     // auto traj_plan = plan.trajectory_;
-
-    //     // // Print start state from the plan
-    //     // auto plan_start_state = plan.start_state_;
-    //     // std::cout << "Plan Start State Joints:" << std::endl;
-    //     // for (const auto& joint_name : joint_names)
-    //     // {
-    //     //     double pos = plan_start_state.getVariablePosition(joint_name);
-    //     //     std::cout << "  " << joint_name << ": " << pos << std::endl;
-    //     // }
-
-    //     // Print trajectory waypoints joint positions
-    //     // std::cout << "Trajectory joint waypoints:" << std::endl;
-    //     // const moveit_msgs::RobotTrajectory traj = plan.trajectory_;
-    //     // const robot_state::RobotState& first_waypt = traj.getFirstWayPoint();
-    //     // std::cout << "  First waypoint:" << std::endl;
-    //     // for (const auto& joint_name : joint_names)
-    //     // {
-    //     //     double pos = current_state->getVariablePosition(joint_name);
-    //     //     std::cout << "  " << joint_name << ": " << pos << std::endl;
-    //     // }
-
-
-    //     // Print planning time and error code
-    //     std::cout << "Planning time (s): " << plan.planning_time_ << std::endl;
-    // }
 
     // Execute synchronously
     bool execSync(const moveit::planning_interface::MoveGroupInterface::Plan& plan) {
@@ -335,8 +250,6 @@ public:
     geometry_msgs::Pose getCurrentPose() {
         return move_group_.getCurrentPose().pose;
     }
-
-
 
     std::queue<geometry_msgs::Pose> generate_parametric_circle_poses(geometry_msgs::Pose &fruit_pose, double approach_dist, double angle_offset_manipulator, bool debug)
     {
@@ -518,46 +431,11 @@ public:
         move_group_.setMaxVelocityScalingFactor(0.2);
         move_group_.setMaxAccelerationScalingFactor(0.1);
         moveit_msgs::RobotTrajectory trajectory;
-        double fraction = 0.0;
         
-        // while(fraction < cartesian_threshold) {
-            // ROS_INFO_NAMED("vader_planner", "Retry with fraction: %f", fraction);
-        fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
-        // }
-        // for(size_t i = 0; i < trajectory.joint_trajectory.points.size(); ++i){
-        //     trajectory_msgs::JointTrajectoryPoint& point = trajectory.joint_trajectory.points[i];
-        //     if(i % 5 == 0){
-        //         std::cout << point.time_from_start << ", " ;
-        //     }
-        //     // point.time_from_start = ros::Duration(i*0.05);
-        // }
-
-        // robot_trajectory::RobotTrajectory rt(move_group_.getCurrentState()->getRobotModel(), GRIPPER_MOVE_GROUP);
-        // rt.setRobotTrajectoryMsg(*move_group_.getCurrentState(), trajectory); // computed_trajectory from computeCartesianPath()
-        // trajectory_processing::IterativeParabolicTimeParameterization iptp;
-        // bool iptp_success = iptp.computeTimeStamps(rt);
+        double fraction = move_group_.computeCartesianPath(waypoints, eef_step, trajectory);
 
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         plan.trajectory_ = trajectory;
-        // if(iptp_success) {
-        //     rt.getRobotTrajectoryMsg(trajectory);
-        //     plan.trajectory_ = trajectory;
-        // } else {
-        //     // Handle error
-        //     ROS_WARN_NAMED("vader_planner", "Gripper: IPTP procedure error");
-        // }
-
-        // if (trajectory.points.size() >= 2)
-        // {
-        //     if ((trajectory.points.end() - 1)->time_from_start == (trajectory.points.end() - 2)->time_from_start)
-        //     {
-        //     ROS_WARN("last 2 waypoints time from start are equal");
-
-        //     auto& point = trajectory.points[trajectory.points.size() - 1];
-        //     point.time_from_start = point.time_from_start + ros::Duration(1e-3);
-        //     }
-        // }
-
 
         if (fraction >= cartesian_threshold) {
             ROS_INFO_NAMED("vader_planner", "Cutter guided cartesian path computed successfully.");
@@ -584,11 +462,6 @@ public:
 
     // Plan using RRT (default MoveIt planner)
     std::optional<moveit::planning_interface::MoveGroupInterface::Plan> planRRT(const geometry_msgs::Pose& target_pose) {
-        auto curr_pose = move_group_.getCurrentPose().pose;
-
-        ROS_WARN_NAMED("vader_planner", "current pose: position=(%f, %f, %f) quat=(%f, %f, %f, %f)",
-                        curr_pose.position.x, curr_pose.position.y, curr_pose.position.z,
-                        curr_pose.orientation.x, curr_pose.orientation.y, curr_pose.orientation.z, curr_pose.orientation.w);
         move_group_.setPoseTarget(target_pose);
         moveit::planning_interface::MoveGroupInterface::Plan plan;
 
@@ -724,7 +597,6 @@ public:
         if(debug){
             ROS_INFO("=== Total poses in queue: %zu ===", pose_queue.size());
         }
-
         return pose_queue;
     }
 
@@ -740,130 +612,14 @@ public:
           gripper_planner_(visual_tools),
           cutter_planner_(visual_tools) {
 
-        planning_scene_diff_pub =
-            node_handle.advertise<moveit_msgs::PlanningScene>("planning_scene", 10);
-
-
-        display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true); /*necessary?*/
+        // display_path = node_handle.advertise<moveit_msgs::DisplayTrajectory>("move_group/display_planned_path", 1, true);
         psm = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
-
-        // Load pose strings (expected "x y z qx qy qz qw" or "x,y,z,qx,qy,qz,qw") and other params from ROS parameter server
-        auto parseXYZQuat = [&](const std::string &s, geometry_msgs::Pose &pose) -> bool {
-            std::string tmp = s;
-            for (char &c : tmp) if (c == ',') c = ' ';
-            std::istringstream iss(tmp);
-            std::vector<double> vals;
-            double v;
-            while (iss >> v) vals.push_back(v);
-            if (vals.size() != 7) return false; // expecting x y z qx qy qz qw
-            pose.position.x = vals[0];
-            pose.position.y = vals[1];
-            pose.position.z = vals[2];
-            // Quaternion expected as qx, qy, qz, qw
-            tf2::Quaternion q(vals[3], vals[4], vals[5], vals[6]);
-            q.normalize();
-            pose.orientation = tf2::toMsg(q);
-            return true;
-        };
-
-        // Retrieve params (with sensible defaults)
-        std::string storage_bin_pose_str, gripper_home_pose_str, cutter_home_pose_str;
-        if (node_handle.getParam("storage_bin_pose", storage_bin_pose_str)) {
-            if (!parseXYZQuat(storage_bin_pose_str, storageBinPose)) {
-                ROS_WARN_NAMED("vader_planner", "storage_bin_pose param found but could not parse. Using default.");
-                storageBinPose = makePose(0.2, -0.4, 0.3, QUAT_DOWN());
-            }
-        } else {
-            ROS_WARN_NAMED("vader_planner", "storage_bin_pose param not found. Using default.");
-            storageBinPose = makePose(0.2, -0.4, 0.3, QUAT_DOWN());
-        }
-
-        if (node_handle.getParam("gripper_home_pose", gripper_home_pose_str)) {
-            if (!parseXYZQuat(gripper_home_pose_str, gripperHomePose)) {
-                ROS_WARN_NAMED("vader_planner", "gripper_home_pose param found but could not parse. Using default.");
-                gripperHomePose = makePose(0.6, 0.0, 0.3, QUAT_TOWARD_PLANT());
-            }
-        } else {
-            ROS_WARN_NAMED("vader_planner", "gripper_home_pose param not found. Using default.");
-            gripperHomePose = makePose(0.6, 0.0, 0.3, QUAT_TOWARD_PLANT());
-        }
-
-        if (node_handle.getParam("cutter_home_pose", cutter_home_pose_str)) {
-            if (!parseXYZQuat(cutter_home_pose_str, cutterHomePose)) {
-                ROS_WARN_NAMED("vader_planner", "cutter_home_pose param found but could not parse. Using default.");
-                cutterHomePose = makePose(0.6, 0.5, 0.3, QUAT_TOWARD_PLANT());
-            }
-        } else {
-            ROS_WARN_NAMED("vader_planner", "cutter_home_pose param not found. Using default.");
-            cutterHomePose = makePose(0.6, 0.5, 0.3, QUAT_TOWARD_PLANT());
-        }
-
-        // Other numeric/string params
-        if (!node_handle.getParam("arm_spacing", armSpacing)) {
-            armSpacing = 0.5;
-            ROS_WARN_NAMED("vader_planner", "arm_spacing param not found. Using default: %f", armSpacing);
-        }
-        if (!node_handle.getParam("arm_height_horizontal_mount", armHeightHorizontalMount)) {
-            armHeightHorizontalMount = 0.5;
-            ROS_WARN_NAMED("vader_planner", "arm_height_horizontal_mount param not found. Using default: %f", armHeightHorizontalMount);
-        }
 
         ros::Duration(1.0).sleep(); // give publisher time to connect
         ROS_INFO_NAMED("vader_planner", "VADER Dual Planner Server Initialized");
 
-        {
-            // Print acquired parameters for debugging (print quaternion directly)
-            ROS_WARN_NAMED("vader_planner", "storage_bin_pose: position=(%f, %f, %f) quat=(%f, %f, %f, %f)",
-                           storageBinPose.position.x, storageBinPose.position.y, storageBinPose.position.z,
-                           storageBinPose.orientation.x, storageBinPose.orientation.y, storageBinPose.orientation.z, storageBinPose.orientation.w);
-
-            ROS_WARN_NAMED("vader_planner", "gripper_home_pose: position=(%f, %f, %f) quat=(%f, %f, %f, %f)",
-                           gripperHomePose.position.x, gripperHomePose.position.y, gripperHomePose.position.z,
-                           gripperHomePose.orientation.x, gripperHomePose.orientation.y, gripperHomePose.orientation.z, gripperHomePose.orientation.w);
-
-            ROS_WARN_NAMED("vader_planner", "cutter_home_pose: position=(%f, %f, %f) quat=(%f, %f, %f, %f)",
-                           cutterHomePose.position.x, cutterHomePose.position.y, cutterHomePose.position.z,
-                           cutterHomePose.orientation.x, cutterHomePose.orientation.y, cutterHomePose.orientation.z, cutterHomePose.orientation.w);
-
-            ROS_WARN_NAMED("vader_planner", "arm_spacing: %f", armSpacing);
-            ROS_WARN_NAMED("vader_planner", "arm_height_horizontal_mount: %f", armHeightHorizontalMount);
-        }
-
-        //Register service handler
-
         setupWorkspaceCollision();
-        add_ground_plane_collision();
         planning_service = node_handle.advertiseService("vader_planning_service", &VADERPlannerServer::planningServiceHandler, this);
-    }
-
-
-    void add_ground_plane_collision()
-    {
-        moveit_msgs::CollisionObject ground_plane;
-        ground_plane.header.frame_id = "world";
-        ground_plane.id = "ground_plane";
-
-        // Define the cuboid dimensions
-        shape_msgs::SolidPrimitive ground_primitive;
-        ground_primitive.type = ground_primitive.BOX;
-        ground_primitive.dimensions.resize(3);
-        ground_primitive.dimensions[0] = 2.0;  // Length in x-direction
-        ground_primitive.dimensions[1] = 2.0;  // Width in y-direction
-        ground_primitive.dimensions[2] = 0.01; // Height in z-direction
-
-        // Define the pose of the cuboid
-        geometry_msgs::Pose ground_pose;
-        ground_pose.position.x = 0.0;
-        ground_pose.position.y = 0.0;
-        ground_pose.position.z = 0.05 - (ground_primitive.dimensions[2] / 2.0);
-        ground_pose.orientation.w = 1.0; // No rotation
-
-        ground_plane.primitives.push_back(ground_primitive);
-        ground_plane.primitive_poses.push_back(ground_pose);
-        ground_plane.operation = moveit_msgs::CollisionObject::ADD;
-
-        // Add the ground plane to the planning scene
-        planning_scene_interface.applyCollisionObject(ground_plane);
     }
 
     void visualizePepper(const vader_msgs::Pepper pepper_estimate) {
@@ -892,7 +648,6 @@ public:
         warthog_body.id = "warthog_body";
         warthog_body.header.frame_id = "world";
 
-        // Box dimensions: x = 0.5 (from -0.6 to -0.1), y = 1.0 (from -0.25 to 0.75), z = 1.0 (from 0 to 1)
         shape_msgs::SolidPrimitive box_primitive;
         box_primitive.type = shape_msgs::SolidPrimitive::BOX;
         box_primitive.dimensions.resize(3);
@@ -904,7 +659,7 @@ public:
         geometry_msgs::Pose box_pose;
         box_pose.position.x = -0.50;
         box_pose.position.y = 0.25;
-        box_pose.position.z = 0.5; // center at z = 0.5
+        box_pose.position.z = 0.5;
         box_pose.orientation.w = 1.0;
 
         warthog_body.primitives.push_back(box_primitive);
@@ -916,9 +671,36 @@ public:
         orange_bright.r = 1.0f;
         orange_bright.g = 0.5f;
         orange_bright.b = 0.0f;
-        orange_bright.a = 1.0f; // fully opaque
+        orange_bright.a = 1.0f;
 
         planning_scene_interface.applyCollisionObject(warthog_body, orange_bright);
+
+        // ----------------------------------------- Ground Plane -----------------------------------------
+        moveit_msgs::CollisionObject ground_plane;
+        ground_plane.header.frame_id = "world";
+        ground_plane.id = "ground_plane";
+
+        // Define the cuboid dimensions
+        shape_msgs::SolidPrimitive ground_primitive;
+        ground_primitive.type = ground_primitive.BOX;
+        ground_primitive.dimensions.resize(3);
+        ground_primitive.dimensions[0] = 2.0;  // Length in x-direction
+        ground_primitive.dimensions[1] = 2.0;  // Width in y-direction
+        ground_primitive.dimensions[2] = 0.01; // Height in z-direction
+
+        // Define the pose of the cuboid
+        geometry_msgs::Pose ground_pose;
+        ground_pose.position.x = 0.0;
+        ground_pose.position.y = 0.0;
+        ground_pose.position.z = 0.05 - (ground_primitive.dimensions[2] / 2.0);
+        ground_pose.orientation.w = 1.0; // No rotation
+
+        ground_plane.primitives.push_back(ground_primitive);
+        ground_plane.primitive_poses.push_back(ground_pose);
+        ground_plane.operation = moveit_msgs::CollisionObject::ADD;
+
+        // Add the ground plane to the planning scene
+        planning_scene_interface.applyCollisionObject(ground_plane);
     }
 
     void show_trails(const std::optional<moveit::planning_interface::MoveGroupInterface::Plan>& plan_gripper,
@@ -939,7 +721,6 @@ public:
 
 
     void start() {
-        // Start server logic here
         spinner.start();
     }
 
@@ -1002,11 +783,10 @@ public:
     }
 
     int gripperGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
-        // Translate the target pose along its local -Z axis by final_approach_dist
+        // Approach pose is moved backward
         geometry_msgs::Pose approach_pose = translateByLocalZ(target_pose, -final_approach_dist);
 
         auto plan = gripper_planner_.planGuidedCartesian(approach_pose);
-        // plan = gripper_planner_.planRRT(approach_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper grasp movement.");
             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
@@ -1019,7 +799,7 @@ public:
 
         target_pose.position.z += 0.01; //reach higher
 
-        plan = gripper_planner_.planGuidedCartesian(target_pose);// planCartesian(target_pose);
+        plan = gripper_planner_.planGuidedCartesian(target_pose);
         if(plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper final approach movement.");
             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
@@ -1036,6 +816,8 @@ public:
 
     int cutterGrasp(geometry_msgs::Pose& target_pose, double final_approach_dist){
         auto gripper_current_pose = gripper_planner_.getCurrentPose();
+
+        //TODO use this for debugging pose based on end effector pose
         // ROS_WARN_STREAM("Current gripper end effector pose: ("
         //                 << gripper_current_pose.position.x << ", "
         //                 << gripper_current_pose.position.y << ", "
@@ -1249,7 +1031,7 @@ public:
 
         // lower gripper to storage position
         geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
-        gripper_lowered_pose.position.z -= 0.15; // lower by 10 cm
+        gripper_lowered_pose.position.z -= 0.15;
         auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
         if(gripper_lower_plan == std::nullopt) {
             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
@@ -1293,15 +1075,6 @@ public:
                 pepper_estimate.fruit_data.pose.position.z += 0.10; //lift pregrasp to help camera see peduncle
                 pepper_estimate.peduncle_data.pose.position.z += 0.10; //Same for cutter cam
 
-                // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.w = 1.0;
-
-                // pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 bool debug_PC_output = true;
                 auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.25, GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
                 auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.25, CUTTER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
@@ -1386,15 +1159,6 @@ public:
                 visual_tools->deleteAllMarkers();
                 visualizePepper(pepper_estimate);
                 visual_tools->trigger();
-                // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.w = 1.0;
-
-                // pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 double final_approach_dist = 0.10;
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f", 
@@ -1450,15 +1214,6 @@ public:
                 vader_msgs::Pepper pepper_estimate = req.pepper;
                 visualizePepper(pepper_estimate);
                 visual_tools->trigger();
-                // pepper_estimate.fruit_data.pose.orientation.x = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.y = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.z = 0.0;
-                // pepper_estimate.fruit_data.pose.orientation.w = 1.0;
-
-                // pepper_estimate.peduncle_data.pose.orientation.x = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.y = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.z = 0.0;
-                // pepper_estimate.peduncle_data.pose.orientation.w = 1.0;
                 double final_approach_dist = 0.1;
 
                 ROS_INFO("  Position: x=%.3f, y=%.3f, z=%.3f",
@@ -1541,17 +1296,11 @@ public:
         ROS_WARN_NAMED("vader_planner", "Shared workspace collision removed.");
     }
 
-private:
-    geometry_msgs::Pose storageBinPose;
-    geometry_msgs::Pose gripperHomePose;
-    geometry_msgs::Pose cutterHomePose;
-    double armSpacing;
-    double armHeightHorizontalMount;    
+private: 
     moveit_visual_tools::MoveItVisualToolsPtr visual_tools = std::make_shared<moveit_visual_tools::MoveItVisualTools>("world"); //shared from planner server main instance
-    ros::Publisher display_path;
+    // ros::Publisher display_path;
     
     ros::NodeHandle node_handle;
-    ros::Publisher planning_scene_diff_pub;
     ros::ServiceServer planning_service;
 
     planning_scene_monitor::PlanningSceneMonitorPtr psm;
