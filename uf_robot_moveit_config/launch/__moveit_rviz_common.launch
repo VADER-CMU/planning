@@ -64,6 +64,7 @@
   <arg name="arm_spacing" default="0.5"/>
   <arg name="bin_xyz" default="0.0 -0.3 0.0"/>
   <arg name="horizontal_mount_arms" default="false"/>
+  <arg name="arm_height_horizontal_mount" default="0.5"/>
 
   <arg name="pipeline" default="ompl" />
 
@@ -111,6 +112,7 @@
     <arg name="arm_spacing" value="$(arg arm_spacing)"/>
     <arg name="bin_xyz" value="$(arg bin_xyz)"/>
     <arg name="horizontal_mount_arms" value="$(arg horizontal_mount_arms)"/>
+    <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
 
     <arg name="dof" value="$(arg robot_dof)"/>
     <arg name="robot_type" value="$(arg robot_type)"/>

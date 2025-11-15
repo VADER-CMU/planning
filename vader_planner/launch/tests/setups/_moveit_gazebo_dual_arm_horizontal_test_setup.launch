@@ -2,12 +2,6 @@
     <!-- This file is to be used in single-arm motion planning testing.-->
     <!-- This creates a single xArm7 robot in both gazebo and moveit, and launches the RViz/Gazebo windows. -->
 
-    <!-- startup simulated world -->
-    <include file="$(find xarm_gazebo)/launch/VADER_horizontal_2arms.launch">
-        <arg name="paused" value="false"/>
-        <arg name="gui" value="true"/>
-    </include>
-
     <!-- Properly kill gazebo clients after Ctrl+C by chasing it with a SIGKILL -->
     <node pkg="vader_planner" type="gazebo_assassin" name="gazebo_assassin" output="screen"/>
 
@@ -28,6 +22,7 @@
     <arg name="arm_spacing" default="0.5"/>
     <arg name="bin_xyz" default="0.0 -0.3 0.0"/>
     <arg name="horizontal_mount_arms" default="true"/>
+    <arg name="arm_height_horizontal_mount" default="0.5"/>
     
     <arg name="add_realsense_d435i" default="false" />
     <arg name="add_d435i_links" default="false" />
@@ -57,6 +52,13 @@
     <arg name="robot_dof" value="$(eval arg('dof') if arg('robot_type') == 'xarm' else 6)" />
     <arg name="robot_name" value="$(eval 'uf850' if arg('robot_type') == 'uf850' else arg('robot_type') + str(arg('robot_dof')))" />
 
+    <!-- startup simulated world -->
+    <include file="$(find xarm_gazebo)/launch/VADER_horizontal_2arms.launch">
+        <arg name="paused" value="false"/>
+        <arg name="gui" value="true"/>
+        <arg name="sim_pepper_pose" value="$(arg sim_pepper_pose)"/>
+    </include>
+
     <!-- Remap the name space so it can send command to gazebo loaded controller -->
     <!-- this remap must appear BEFORE move_group launch -->
     <arg if="$(eval arg('robot_type') == 'uf850')" name="robot_controller_name" value="$(eval arg('robot_type') + ('_velo_traj_controller' if arg('velocity_control') else '_traj_controller'))" />
@@ -78,6 +80,7 @@
 
 
     <arg name="arm_spacing" value="$(arg arm_spacing)"/>
+    <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
     <arg name="bin_xyz" value="$(arg bin_xyz)"/>
     <arg name="horizontal_mount_arms" value="$(arg horizontal_mount_arms)"/>
     <arg name="dof" value="$(arg dof)" />

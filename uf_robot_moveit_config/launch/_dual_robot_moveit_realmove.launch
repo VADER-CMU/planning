@@ -12,6 +12,12 @@
   <arg name="baud_checkset" default="true" />
 	<arg name="default_gripper_baud" default="2000000" />
 
+  <arg name="add_vader_eef" default="true"/>
+  <arg name="arm_spacing" default="0.5"/>
+  <arg name="bin_xyz" default="0.0 0.0 0.0"/>
+  <arg name="horizontal_mount_arms" default="true"/>
+  <arg name="arm_height_horizontal_mount" default="0.5"/>
+
   <arg name="attach_to" default="world" />
   <arg name="attach_xyz" default="'0 0 0'" />
   <arg name="attach_rpy" default="'0 0 0'" />
@@ -135,6 +141,12 @@
     <arg name="attach_xyz" value="$(arg attach_xyz)"/>
     <arg name="attach_rpy" value="$(arg attach_rpy)"/>
     
+    <arg name="add_vader_eef" value="$(arg add_vader_eef)"/>
+    <arg name="arm_spacing" value="$(arg arm_spacing)"/>
+    <arg name="bin_xyz" value="$(arg bin_xyz)"/>
+    <arg name="horizontal_mount_arms" value="true"/>
+    <arg name="arm_height_horizontal_mount" value="$(arg arm_height_horizontal_mount)"/>
+
     <arg name="add_realsense_d435i" value="$(arg add_realsense_d435i)"/>
     <arg name="add_d435i_links" value="$(arg add_d435i_links)"/>
     <arg name="add_gripper" value="$(arg add_gripper)"/>

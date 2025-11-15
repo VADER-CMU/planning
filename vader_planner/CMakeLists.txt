@@ -2,10 +2,11 @@ cmake_minimum_required(VERSION 2.8.3)
 project(vader_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 11)
-endif()
-
+#if(NOT CMAKE_CXX_STANDARD)
+#  set(CMAKE_CXX_STANDARD 11)
+#endif()
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -260,9 +261,9 @@ target_link_libraries(utils ${catkin_LIBRARIES})
 # target_link_libraries(vader_single_arm_planner_PC_withrot ${catkin_LIBRARIES})
 
 
-add_executable(vader_svd_dual_arm_planner src/vader_svd_dual_arm_planner.cpp)
-add_dependencies(vader_svd_dual_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_svd_dual_arm_planner ${catkin_LIBRARIES})
+# add_executable(vader_svd_dual_arm_planner src/vader_svd_dual_arm_planner.cpp)
+# add_dependencies(vader_svd_dual_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_svd_dual_arm_planner ${catkin_LIBRARIES})
 
 # add_executable(cutter_logic_test src/cutter_logic_test.cpp)
 # add_dependencies(cutter_logic_test ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -276,21 +277,21 @@ add_executable(vader_parallel_dual_planner src/vader_parallel_dual_planner.cpp)
 add_dependencies(vader_parallel_dual_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(vader_parallel_dual_planner ${catkin_LIBRARIES} utils)
 
-add_executable(vader_svd_single_arm_planner src/vader_svd_single_arm_planner.cpp)
-add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
+# add_executable(vader_svd_single_arm_planner src/vader_svd_single_arm_planner.cpp)
+# add_dependencies(vader_svd_single_arm_planner ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_svd_single_arm_planner ${catkin_LIBRARIES})
 
 add_executable(gazebo_assassin src/utils/gazebo_assassin.cpp)
 add_dependencies(gazebo_assassin ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(gazebo_assassin ${catkin_LIBRARIES})
 
-add_executable(vader_cost_objective src/utils/vader_cost_objective.cpp)
-add_dependencies(vader_cost_objective ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(vader_cost_objective ${catkin_LIBRARIES} ${OMPL_LIBRARIES} utils)
+# add_executable(vader_cost_objective src/utils/vader_cost_objective.cpp)
+# add_dependencies(vader_cost_objective ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(vader_cost_objective ${catkin_LIBRARIES} ${OMPL_LIBRARIES} utils)
 
-add_executable(planner_tester src/planner_tester.cpp)
-add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(planner_tester utils ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
+# add_executable(planner_tester src/planner_tester.cpp)
+# add_dependencies(planner_tester ${${PROJECT_NAME}_EXPORTED_TARGETS})
+# target_link_libraries(planner_tester utils ${catkin_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
 #-------------------------------------manual tests-------------------------------------#
 
@@ -318,12 +319,12 @@ install(TARGETS
   # vader_single_arm_planner_PC_withrot
   utils
   collision_object_utils_tests
-  vader_svd_dual_arm_planner
-  vader_svd_single_arm_planner
+  # vader_svd_dual_arm_planner
+  # vader_svd_single_arm_planner
   vader_parallel_dual_planner
   gazebo_assassin
-  vader_cost_objective
-  planner_tester
+  # vader_cost_objective
+  # planner_tester
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
