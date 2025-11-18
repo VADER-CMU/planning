@@ -62,8 +62,10 @@ const double cartesian_threshold = 0.9;
 const double DEG2RAD = (M_PI / 180.0);
 
 const double INV_KINEMATICS_SOLUTION_TIME_LIMIT_SEC = 0.1;
-const double GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS = M_PI/6;
+const double GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS = M_PI/4;
 const double CUTTER_GRASP_DIRECTION_OFFSET_RADIANS = -M_PI/4;
+
+const double CUTTER_FINAL_GRASP_Z_OFFSET = 0.045; //0.06;
 
 const double STORAGE_LOWER_Z_METER = 0.15;
 
@@ -974,7 +976,6 @@ public:
         if(!success) {
             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
         }
-        removeSharedWorkspaceCollision();
 
         auto gripper_retract_plan = gripper_planner_.planGuidedCartesian(gripper_retract_pose);
         if(gripper_retract_plan == std::nullopt) {
@@ -1116,6 +1117,8 @@ public:
                 visual_tools->trigger();
                 
                 res.result = parallelMovePregrasp(gripper_pregrasp_pose, cutter_pregrasp_pose);
+
+                removeSharedWorkspaceCollision();
                 break;
             }
             case vader_msgs::PlanningRequest::Request::GRIPPER_GRASP:{
@@ -1183,7 +1186,7 @@ public:
                     //See if we can reach the final grasp pose at all (IK)
                     // Translate the target pose along its local -Z axis by final_approach_dist
                     geometry_msgs::Pose cutter_final_pose = translateByLocalZ(cutter_test_pose, 0.08);
-                    cutter_final_pose.position.z += 0.07; // extra offset to account for cutter length
+                    cutter_final_pose.position.z += CUTTER_FINAL_GRASP_Z_OFFSET; // extra offset to account for cutter length
                     
                     bool reachable = gripper_planner_.testPoseIK(cutter_final_pose);
                     if (cutter_ik_valid && !reachable) {
@@ -1238,7 +1241,7 @@ public:
                     //See if we can reach the final grasp pose at all (IK)
                     // Translate the target pose along its local -Z axis by final_approach_dist
                     geometry_msgs::Pose cutter_final_pose = translateByLocalZ(cutter_test_pose, 0.08);
-                    cutter_final_pose.position.z += 0.07; // extra offset to account for cutter length
+                    cutter_final_pose.position.z += CUTTER_FINAL_GRASP_Z_OFFSET; // extra offset to account for cutter length
                     
                     bool reachable = gripper_planner_.testPoseIK(cutter_final_pose);
                     if (cutter_ik_valid && !reachable) {
@@ -1265,7 +1268,7 @@ public:
 
                 // Translate the target pose along its local -Z axis by final_approach_dist
                 cutter_pregrasp_pose = translateByLocalZ(cutter_pregrasp_pose, 0.08);
-                cutter_pregrasp_pose.position.z += 0.07; // extra offset to account for cutter length
+                cutter_pregrasp_pose.position.z += CUTTER_FINAL_GRASP_Z_OFFSET; // extra offset to account for cutter length
                 visual_tools->publishAxisLabeled(cutter_pregrasp_pose, "Cutter Grasp Pose", rvt::MEDIUM);
 
                 // Plan a Cartesian approach to the target pose
