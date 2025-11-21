@@ -1000,22 +1000,28 @@ public:
             }
             show_trails(std::nullopt, cutter_home_plan);
 
-            //Plan to put gripper to storage pose while cutter is moving home
-            auto gripper_storage_plan_future = std::async(&VADERGripperPlanner::planToJointPositions, &gripper_planner_, gripper_arm_storage_joint_positions);
+            // //Plan to put gripper to storage pose while cutter is moving home
+            // auto gripper_storage_plan_future = std::async(&VADERGripperPlanner::planToJointPositions, &gripper_planner_, gripper_arm_storage_joint_positions);
             success = cutter_planner_.execSync(cutter_home_plan.value());
             if(!success) {
                 return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
             }
-            auto gripper_storage_plan = gripper_storage_plan_future.get();
-            if (gripper_storage_plan == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper storage movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_RRT_TIMEOUT;
+
+
+            returnCode = moveGripperToStorage();
+            if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
+                return returnCode;
             }
-            show_trails(gripper_storage_plan, std::nullopt);
-            success = gripper_planner_.execSync(gripper_storage_plan.value());
-            if(!success) {
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
-            }
+            // auto gripper_storage_plan = gripper_storage_plan_future.get();
+            // if (gripper_storage_plan == std::nullopt) {
+            //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper storage movement.");
+            //     return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_RRT_TIMEOUT;
+            // }
+            // show_trails(gripper_storage_plan, std::nullopt);
+            // success = gripper_planner_.execSync(gripper_storage_plan.value());
+            // if(!success) {
+            //     return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+            // }
 
             // lower gripper to storage position
             geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
