@@ -65,7 +65,7 @@ const double INV_KINEMATICS_SOLUTION_TIME_LIMIT_SEC = 0.1;
 const double GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS = M_PI/4;
 const double CUTTER_GRASP_DIRECTION_OFFSET_RADIANS = -M_PI/4;
 
-const double CUTTER_FINAL_GRASP_Z_OFFSET = 0.045; //0.06;
+const double CUTTER_FINAL_GRASP_Z_OFFSET = 0.06; //0.045;
 
 const double STORAGE_LOWER_Z_METER = 0.15;
 
@@ -1120,8 +1120,8 @@ public:
                 pepper_estimate.peduncle_data.pose.position.z += 0.10; //Same for cutter cam
 
                 bool debug_PC_output = false;
-                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.2, GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
-                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.2, CUTTER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
+                auto gripper_target_poses = gripper_planner_.generate_parametric_circle_poses(pepper_estimate.fruit_data.pose, 0.17, GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
+                auto cutter_target_poses = cutter_planner_.generate_parametric_circle_poses(pepper_estimate.peduncle_data.pose, 0.17, CUTTER_GRASP_DIRECTION_OFFSET_RADIANS, debug_PC_output);
                 visual_tools->trigger();
 
                 double dynamic_y = 0;
