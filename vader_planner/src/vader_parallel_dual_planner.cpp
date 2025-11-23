@@ -65,7 +65,7 @@ const double INV_KINEMATICS_SOLUTION_TIME_LIMIT_SEC = 0.1;
 const double GRIPPER_GRASP_DIRECTION_OFFSET_RADIANS = M_PI/4;
 const double CUTTER_GRASP_DIRECTION_OFFSET_RADIANS = -M_PI/4;
 
-const double CUTTER_FINAL_GRASP_Z_OFFSET = 0.06; //0.045;
+const double CUTTER_FINAL_GRASP_Z_OFFSET = 0.045; //0.045;
 
 const double STORAGE_LOWER_Z_METER = 0.15;
 
@@ -915,6 +915,182 @@ public:
         }
     }
 
+    // int parallelMoveStorage(){
+
+    //     int returnCode = 0;
+    //     // auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
+    //     // if(gripper_plan == std::nullopt) {
+    //     //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage bin.");
+    //     //     return false;
+    //     // }
+    //     // visual_tools->deleteAllMarkers();
+    //     // show_trails(gripper_plan, std::nullopt);
+    //     // auto cutter_plan_future = std::async(&VADERCutterPlanner::planRRT, &cutter_planner_, cutterHomePose);
+    //     // std::thread gripper_exec_thread([&]() {
+    //     //     gripper_planner_.execSync(gripper_plan.value());
+    //     //     ROS_WARN_NAMED("vader_planner", "Gripper movement to storage bin finished.");
+    //     // });
+    //     // auto cutter_plan = cutter_plan_future.get();
+    //     // if(cutter_plan == std::nullopt) {
+    //     //     ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
+    //     //     success = false;
+    //     // }
+    //     // gripper_exec_thread.join();
+    //     // show_trails(std::nullopt, cutter_plan);
+    //     // success &= cutter_planner_.execSync(cutter_plan.value());
+
+
+    //     // auto gripper_plan = gripper_planner_.planRRT(storageBinPose);
+
+    //     // gripper_plan = gripper_planner_.planRRT(storageBinPose);
+    //     // auto gripper_plan = gripper_planner_.planToJointPositions(gripper_arm_home_joint_positions);
+    //     // gripper_plan = gripper_planner_.planToJointPositions(gripper_arm_storage_joint_positions);
+    //     // if(gripper_plan == std::nullopt) {
+    //     //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper movement to storage.");
+    //     //     return false;
+    //     // }
+    //     // show_trails(gripper_plan, std::nullopt);
+    //     // success &= gripper_planner_.execSync(gripper_plan.value());
+
+    //     // auto gripper_plan = gripper_planner_.planGuidedCartesian(...); //TODO make it retract by same amount
+        
+    //     geometry_msgs::Pose cutter_retract_pose = translateByLocalZ(cutter_planner_.getCurrentPose(), -0.15);
+    //     cutter_retract_pose.position.z += 0.10; // extra up for cutter
+    //     geometry_msgs::Pose gripper_retract_pose = translateByLocalZ(gripper_planner_.getCurrentPose(), -0.15);
+
+    //     if (PARALLELIZE_STORAGE) {
+    //         auto cutter_plan_retract = cutter_planner_.planGuidedCartesian(cutter_retract_pose);
+
+    //         if(cutter_plan_retract == std::nullopt) {
+    //             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter retract movement.");
+    //             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
+    //         }
+    //         show_trails(std::nullopt, cutter_plan_retract);
+
+    //         auto gripper_plan_retract_future = std::async(&VADERGripperPlanner::planGuidedCartesian, &gripper_planner_, gripper_retract_pose);
+    //         std::promise<bool> cutter_exec_promise;
+    //         std::future<bool> cutter_exec_future = cutter_exec_promise.get_future();
+    //         std::thread cutter_exec_thread([this, &cutter_exec_promise, cp = cutter_plan_retract]() mutable {
+    //             ROS_WARN_NAMED("vader_planner", "cutter exec thread running");
+    //             bool exec_result = this->cutter_planner_.execSync(cp.value());
+    //             cutter_exec_promise.set_value(exec_result);
+    //             ROS_WARN_NAMED("vader_planner", "Cutter retract movement finished.");
+    //         });
+    //         ROS_WARN_NAMED("vader_planner", "Getting gripper retract plan future");
+
+    //         auto gripper_plan_retract = gripper_plan_retract_future.get();
+    //         if(gripper_plan_retract == std::nullopt) {
+    //             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper retract movement.");
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+    //         }
+    //         show_trails(gripper_plan_retract, std::nullopt);
+    //         cutter_exec_thread.join();
+    //         ROS_WARN_NAMED("vader_planner", "Getting cutter exec result future");
+
+    //         //Plan to home cutter while gripper is retracting
+    //         auto cutter_home_plan_future = std::async(&VADERCutterPlanner::planToJointPositions, &cutter_planner_, cutter_arm_home_joint_positions);
+    //         bool success = gripper_planner_.execSync(gripper_plan_retract.value());
+    //         if(!success) {
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+    //         }
+    //         auto cutter_home_plan = cutter_home_plan_future.get();
+    //         if (cutter_home_plan == std::nullopt) {
+    //             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
+    //             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_RRT_TIMEOUT;
+    //         }
+    //         show_trails(std::nullopt, cutter_home_plan);
+
+    //         // //Plan to put gripper to storage pose while cutter is moving home
+    //         // auto gripper_storage_plan_future = std::async(&VADERGripperPlanner::planToJointPositions, &gripper_planner_, gripper_arm_storage_joint_positions);
+    //         success = cutter_planner_.execSync(cutter_home_plan.value());
+    //         if(!success) {
+    //             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+    //         }
+
+
+    //         returnCode = moveGripperToStorage();
+    //         if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
+    //             return returnCode;
+    //         }
+    //         // auto gripper_storage_plan = gripper_storage_plan_future.get();
+    //         // if (gripper_storage_plan == std::nullopt) {
+    //         //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper storage movement.");
+    //         //     return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_RRT_TIMEOUT;
+    //         // }
+    //         // show_trails(gripper_storage_plan, std::nullopt);
+    //         // success = gripper_planner_.execSync(gripper_storage_plan.value());
+    //         // if(!success) {
+    //         //     return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+    //         // }
+
+    //         // lower gripper to storage position
+    //         geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
+    //         gripper_lowered_pose.position.z -= STORAGE_LOWER_Z_METER;
+    //         auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
+    //         if(gripper_lower_plan == std::nullopt) {
+    //             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+    //         }
+    //         show_trails(gripper_lower_plan, std::nullopt);
+    //         success = gripper_planner_.execSync(gripper_lower_plan.value());
+    //         if(!success) {
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+    //         }
+
+    //         return vader_msgs::PlanningRequest::Response::SUCCESS;
+
+    //     } else {
+
+    //         auto cutter_retract_plan = cutter_planner_.planGuidedCartesian(cutter_retract_pose);
+    //         if(cutter_retract_plan == std::nullopt) {
+    //             ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter retract movement.");
+    //             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
+    //         }
+    //         show_trails(std::nullopt, cutter_retract_plan);
+    //         bool success = cutter_planner_.execSync(cutter_retract_plan.value());
+    //         if(!success) {
+    //             return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+    //         }
+
+    //         auto gripper_retract_plan = gripper_planner_.planGuidedCartesian(gripper_retract_pose);
+    //         if(gripper_retract_plan == std::nullopt) {
+    //             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper retract movement.");
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+    //         }
+    //         show_trails(gripper_retract_plan, std::nullopt);
+    //         success = gripper_planner_.execSync(gripper_retract_plan.value());
+    //         if(!success) {
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+    //         }
+
+    //         returnCode = homeCutter();
+    //         if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
+    //             return returnCode;
+    //         }
+            
+    //         returnCode = moveGripperToStorage();
+    //         if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
+    //             return returnCode;
+    //         }
+
+    //         // lower gripper to storage position
+    //         geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
+    //         gripper_lowered_pose.position.z -= STORAGE_LOWER_Z_METER;
+    //         auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
+    //         if(gripper_lower_plan == std::nullopt) {
+    //             ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+    //         }
+    //         show_trails(gripper_lower_plan, std::nullopt);
+    //         success = gripper_planner_.execSync(gripper_lower_plan.value());
+    //         if(!success) {
+    //             return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+    //         }
+
+    //         return returnCode;
+    //     }
+    // }
+
     int parallelMoveStorage(){
 
         int returnCode = 0;
@@ -958,137 +1134,53 @@ public:
         cutter_retract_pose.position.z += 0.10; // extra up for cutter
         geometry_msgs::Pose gripper_retract_pose = translateByLocalZ(gripper_planner_.getCurrentPose(), -0.15);
 
-        if (PARALLELIZE_STORAGE) {
-            auto cutter_plan_retract = cutter_planner_.planGuidedCartesian(cutter_retract_pose);
+        auto cutter_retract_plan = cutter_planner_.planGuidedCartesian(cutter_retract_pose);
+        if(cutter_retract_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter retract movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
+        }
+        show_trails(std::nullopt, cutter_retract_plan);
+        bool success = cutter_planner_.execSync(cutter_retract_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
+        }
 
-            if(cutter_plan_retract == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter retract movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
-            }
-            show_trails(std::nullopt, cutter_plan_retract);
+        auto gripper_retract_plan = gripper_planner_.planGuidedCartesian(gripper_retract_pose);
+        if(gripper_retract_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper retract movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+        }
+        show_trails(gripper_retract_plan, std::nullopt);
+        success = gripper_planner_.execSync(gripper_retract_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
 
-            auto gripper_plan_retract_future = std::async(&VADERGripperPlanner::planGuidedCartesian, &gripper_planner_, gripper_retract_pose);
-            std::promise<bool> cutter_exec_promise;
-            std::future<bool> cutter_exec_future = cutter_exec_promise.get_future();
-            std::thread cutter_exec_thread([this, &cutter_exec_promise, cp = cutter_plan_retract]() mutable {
-                ROS_WARN_NAMED("vader_planner", "cutter exec thread running");
-                bool exec_result = this->cutter_planner_.execSync(cp.value());
-                cutter_exec_promise.set_value(exec_result);
-                ROS_WARN_NAMED("vader_planner", "Cutter retract movement finished.");
-            });
-            ROS_WARN_NAMED("vader_planner", "Getting gripper retract plan future");
-
-            auto gripper_plan_retract = gripper_plan_retract_future.get();
-            if(gripper_plan_retract == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper retract movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
-            }
-            show_trails(gripper_plan_retract, std::nullopt);
-            cutter_exec_thread.join();
-            ROS_WARN_NAMED("vader_planner", "Getting cutter exec result future");
-
-            //Plan to home cutter while gripper is retracting
-            auto cutter_home_plan_future = std::async(&VADERCutterPlanner::planToJointPositions, &cutter_planner_, cutter_arm_home_joint_positions);
-            bool success = gripper_planner_.execSync(gripper_plan_retract.value());
-            if(!success) {
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
-            }
-            auto cutter_home_plan = cutter_home_plan_future.get();
-            if (cutter_home_plan == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter home movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_RRT_TIMEOUT;
-            }
-            show_trails(std::nullopt, cutter_home_plan);
-
-            // //Plan to put gripper to storage pose while cutter is moving home
-            // auto gripper_storage_plan_future = std::async(&VADERGripperPlanner::planToJointPositions, &gripper_planner_, gripper_arm_storage_joint_positions);
-            success = cutter_planner_.execSync(cutter_home_plan.value());
-            if(!success) {
-                return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
-            }
-
-
-            returnCode = moveGripperToStorage();
-            if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
-                return returnCode;
-            }
-            // auto gripper_storage_plan = gripper_storage_plan_future.get();
-            // if (gripper_storage_plan == std::nullopt) {
-            //     ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper storage movement.");
-            //     return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_RRT_TIMEOUT;
-            // }
-            // show_trails(gripper_storage_plan, std::nullopt);
-            // success = gripper_planner_.execSync(gripper_storage_plan.value());
-            // if(!success) {
-            //     return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
-            // }
-
-            // lower gripper to storage position
-            geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
-            gripper_lowered_pose.position.z -= STORAGE_LOWER_Z_METER;
-            auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
-            if(gripper_lower_plan == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
-            }
-            show_trails(gripper_lower_plan, std::nullopt);
-            success = gripper_planner_.execSync(gripper_lower_plan.value());
-            if(!success) {
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
-            }
-
-            return vader_msgs::PlanningRequest::Response::SUCCESS;
-
-        } else {
-
-            auto cutter_retract_plan = cutter_planner_.planGuidedCartesian(cutter_retract_pose);
-            if(cutter_retract_plan == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan cutter retract movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_PLAN_CARTESIAN_FAILED;
-            }
-            show_trails(std::nullopt, cutter_retract_plan);
-            bool success = cutter_planner_.execSync(cutter_retract_plan.value());
-            if(!success) {
-                return vader_msgs::PlanningRequest::Response::FAIL_CUTTER_EXECUTE_FAILED;
-            }
-
-            auto gripper_retract_plan = gripper_planner_.planGuidedCartesian(gripper_retract_pose);
-            if(gripper_retract_plan == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper retract movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
-            }
-            show_trails(gripper_retract_plan, std::nullopt);
-            success = gripper_planner_.execSync(gripper_retract_plan.value());
-            if(!success) {
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
-            }
-
-            returnCode = homeCutter();
-            if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
-                return returnCode;
-            }
-            
-            returnCode = moveGripperToStorage();
-            if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
-                return returnCode;
-            }
-
-            // lower gripper to storage position
-            geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
-            gripper_lowered_pose.position.z -= STORAGE_LOWER_Z_METER;
-            auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
-            if(gripper_lower_plan == std::nullopt) {
-                ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
-            }
-            show_trails(gripper_lower_plan, std::nullopt);
-            success = gripper_planner_.execSync(gripper_lower_plan.value());
-            if(!success) {
-                return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
-            }
-
+        returnCode = homeCutter();
+        if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
             return returnCode;
         }
+        
+        returnCode = moveGripperToStorage();
+        if (returnCode != vader_msgs::PlanningRequest::Response::SUCCESS) {
+            return returnCode;
+        }
+
+        // lower gripper to storage position
+        geometry_msgs::Pose gripper_lowered_pose = gripper_planner_.getCurrentPose();
+        gripper_lowered_pose.position.z -= STORAGE_LOWER_Z_METER;
+        auto gripper_lower_plan = gripper_planner_.planGuidedCartesian(gripper_lowered_pose);
+        if(gripper_lower_plan == std::nullopt) {
+            ROS_ERROR_NAMED("vader_planner", "Failed to plan gripper lowering movement.");
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_PLAN_CARTESIAN_FAILED;
+        }
+        show_trails(gripper_lower_plan, std::nullopt);
+        success = gripper_planner_.execSync(gripper_lower_plan.value());
+        if(!success) {
+            return vader_msgs::PlanningRequest::Response::FAIL_GRIPPER_EXECUTE_FAILED;
+        }
+
+        return returnCode;
     }
 
     bool planningServiceHandler(vader_msgs::PlanningRequest::Request &req,
