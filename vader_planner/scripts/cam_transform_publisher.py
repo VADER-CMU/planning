@@ -35,7 +35,7 @@ calib2.header.stamp = rospy.Time.now()
 calib2.header.frame_id = "L_link_eef"
 calib2.child_frame_id = "gripper_cam_link"
 calib2.transform.translation.x = 0.0
-calib2.transform.translation.y = 0.0
+calib2.transform.translation.y = 0.01
 calib2.transform.translation.z = 0.093 #8cm from end effector plane to top of camera
 
 # Rotation: rotate 180 deg by X and 180 deg by Z
